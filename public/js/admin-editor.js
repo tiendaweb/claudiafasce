@@ -54,7 +54,7 @@ function fieldMessage(key, msg, ok) {
 }
 
 async function persistContent(changedKeys = []) {
-    const response = await fetch('/api/save-content.php', {
+    const response = await fetch(window.ADMIN_EDITOR_ENDPOINTS.saveContent, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(contentState),
@@ -175,7 +175,7 @@ if (isAuthenticated) {
         form.append('key', currentImageKey);
         form.append('image', file);
 
-        const response = await fetch('/api/upload-image.php', { method: 'POST', body: form });
+        const response = await fetch(window.ADMIN_EDITOR_ENDPOINTS.uploadImage, { method: 'POST', body: form });
         const result = await response.json();
         if (!response.ok || !result.ok) {
             feedback.textContent = result.error || 'No se pudo subir la imagen.';

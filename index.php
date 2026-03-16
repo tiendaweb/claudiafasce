@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/includes/auth.php';
 require_once __DIR__ . '/includes/content-repo.php';
+require_once __DIR__ . '/includes/url.php';
 
 $isLoggedIn = current_user() !== null;
 
@@ -262,8 +263,12 @@ $initialContent = array_replace_recursive($defaults, $content);
 <script>
 window.APP_IS_AUTHENTICATED = document.body.dataset.auth === '1';
 window.APP_CONTENT_STATE = <?= json_encode($initialContent, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>;
+window.ADMIN_EDITOR_ENDPOINTS = {
+    saveContent: <?= json_encode(url_for('/api/save-content.php'), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>,
+    uploadImage: <?= json_encode(url_for('/api/upload-image.php'), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>,
+};
 </script>
-<script src="/public/js/admin-editor.js"></script>
+<script src="<?= esc(url_for('/public/js/admin-editor.js')) ?>"></script>
 
 </body>
 </html>

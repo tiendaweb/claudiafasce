@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/includes/auth.php';
+require_once __DIR__ . '/includes/url.php';
 
 $_SESSION = [];
 if (ini_get('session.use_cookies')) {
@@ -12,5 +13,5 @@ if (ini_get('session.use_cookies')) {
 
 session_destroy();
 
-header('Location: /login.php');
+header('Location: ' . url_for('/login.php'));
 exit;

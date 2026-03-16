@@ -2,6 +2,8 @@
 
 declare(strict_types=1);
 
+require_once __DIR__ . '/url.php';
+
 if (session_status() !== PHP_SESSION_ACTIVE) {
     session_start();
 }
@@ -79,6 +81,6 @@ function require_auth(): void
         return;
     }
 
-    header('Location: /login.php');
+    header('Location: ' . url_for('/login.php'));
     exit;
 }
