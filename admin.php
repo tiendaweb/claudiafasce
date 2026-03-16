@@ -227,7 +227,68 @@ $ogImage = admin_content_get($content, 'site.seo.og_image', '');
                     <button class="rounded-xl bg-fuchsia-300 text-slate-900 font-semibold px-5 py-3 hover:bg-fuchsia-200">Guardar SEO</button>
                 </form>
             </section>
+
+
+            <section class="glass rounded-3xl p-6 md:p-8 lg:col-span-2">
+                <h2 class="text-xl font-semibold mb-5">Importar HTML a Plantilla</h2>
+                <form id="import-template-form" class="space-y-4">
+                    <label class="block space-y-2">
+                        <span class="text-sm text-slate-300">Slug de plantilla destino</span>
+                        <input type="text" name="import_slug" placeholder="landing-nueva" required class="w-full rounded-xl border border-white/20 bg-slate-900/60 px-4 py-3 focus:ring-2 focus:ring-cyan-300 outline-none">
+                    </label>
+                    <label class="block space-y-2">
+                        <span class="text-sm text-slate-300">HTML completo</span>
+                        <textarea name="import_html" rows="12" placeholder="<!doctype html>..." required class="w-full rounded-xl border border-white/20 bg-slate-900/60 px-4 py-3 font-mono text-sm focus:ring-2 focus:ring-cyan-300 outline-none"></textarea>
+                    </label>
+                    <div class="flex items-center gap-3">
+                        <button id="import-template-submit" class="rounded-xl bg-emerald-300 text-slate-900 font-semibold px-5 py-3 hover:bg-emerald-200">Importar plantilla</button>
+                        <p id="import-template-status" class="text-sm text-slate-300"></p>
+                    </div>
+                </form>
+            </section>
         </div>
     </div>
+    <script>
+        const importForm = document.getElementById('import-template-form');
+        const importSubmit = document.getElementById('import-template-submit');
+        const importStatus = document.getElementById('import-template-status');
+
+        if (importForm && importSubmit && importStatus) {
+            importForm.addEventListener('submit', async (event) => {
+                event.preventDefault();
+                importStatus.textContent = 'Importando...';
+                importStatus.className = 'text-sm text-slate-300';
+                importSubmit.setAttribute('disabled', 'disabled');
+
+                const formData = new FormData(importForm);
+                const payload = {
+                    slug: String(formData.get('import_slug') ?? '').trim(),
+                    html: String(formData.get('import_html') ?? ''),
+                };
+
+                try {
+                    const response = await fetch('<?= htmlspecialchars(url_for('/api/import-template.php'), ENT_QUOTES, 'UTF-8') ?>', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify(payload),
+                    });
+
+                    const data = await response.json();
+                    if (!response.ok || !data.ok) {
+                        throw new Error(data.error || 'No se pudo importar la plantilla');
+                    }
+
+                    importStatus.textContent = `Plantilla ${data.result.slug} importada (${data.result.editable_nodes} nodos editables).`;
+                    importStatus.className = 'text-sm text-emerald-300';
+                    setTimeout(() => window.location.reload(), 700);
+                } catch (error) {
+                    importStatus.textContent = error instanceof Error ? error.message : 'Error inesperado';
+                    importStatus.className = 'text-sm text-red-300';
+                } finally {
+                    importSubmit.removeAttribute('disabled');
+                }
+            });
+        }
+    </script>
 </body>
 </html>

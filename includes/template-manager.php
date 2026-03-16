@@ -7,6 +7,67 @@ function templates_dir_path(): string
     return dirname(__DIR__) . '/templates';
 }
 
+function template_registry_path(): string
+{
+    return dirname(__DIR__) . '/data/templates-index.json';
+}
+
+function read_template_registry(): array
+{
+    $path = template_registry_path();
+    if (!is_file($path)) {
+        return [];
+    }
+
+    $decoded = json_decode(file_get_contents($path) ?: '[]', true);
+    if (!is_array($decoded)) {
+        return [];
+    }
+
+    $valid = [];
+    foreach ($decoded as $slug) {
+        if (is_string($slug) && preg_match('/^[a-z0-9\-]+$/', $slug) === 1) {
+            $valid[] = $slug;
+        }
+    }
+
+    return array_values(array_unique($valid));
+}
+
+function save_template_registry(array $slugs): bool
+{
+    $path = template_registry_path();
+    $normalized = [];
+
+    foreach ($slugs as $slug) {
+        if (is_string($slug) && preg_match('/^[a-z0-9\-]+$/', $slug) === 1) {
+            $normalized[] = $slug;
+        }
+    }
+
+    $normalized = array_values(array_unique($normalized));
+    sort($normalized);
+
+    $json = json_encode($normalized, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
+    if ($json === false) {
+        return false;
+    }
+
+    return file_put_contents($path, $json . PHP_EOL, LOCK_EX) !== false;
+}
+
+function register_template_slug(string $slug): bool
+{
+    if (preg_match('/^[a-z0-9\-]+$/', $slug) !== 1) {
+        return false;
+    }
+
+    $registry = read_template_registry();
+    $registry[] = $slug;
+
+    return save_template_registry($registry);
+}
+
 function list_available_templates(): array
 {
     $templatesDir = templates_dir_path();
@@ -35,6 +96,7 @@ function list_available_templates(): array
         }
     }
 
+    $templates = array_values(array_unique(array_merge($templates, read_template_registry())));
     sort($templates);
 
     return $templates;
