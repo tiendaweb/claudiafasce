@@ -256,7 +256,11 @@ $initialContent = array_replace_recursive($defaults, $content);
         </div>
         <div id="uploadPane" class="hidden space-y-2">
             <label class="block text-xs">Archivo (jpg/png/webp, máx 5MB)</label>
+            <div id="uploadDropzone" class="border border-dashed border-white/40 rounded-lg p-6 text-center text-sm text-white/80 cursor-pointer transition hover:border-art-neon hover:text-art-neon" role="button" tabindex="0">
+                Arrastra tu imagen aquí o haz click
+            </div>
             <input id="imageFileInput" type="file" accept="image/png,image/jpeg,image/webp" class="w-full text-xs">
+            <p id="uploadFileInfo" class="text-xs text-white/70"></p>
         </div>
         <div id="libraryPane" class="hidden space-y-3">
             <p id="libraryStatus" class="text-xs text-white/70">Explora y selecciona una imagen.</p>

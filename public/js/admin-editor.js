@@ -24,6 +24,104 @@ let imageMode = 'url';
 let libraryLoading = false;
 let selectedLibraryUrl = '';
 
+
+const MAX_UPLOAD_SIZE = 5 * 1024 * 1024;
+const ALLOWED_UPLOAD_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
+const ALLOWED_UPLOAD_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.webp'];
+
+function setModalFeedback(message, ok = false) {
+    const feedback = document.getElementById('modalFeedback');
+    if (!feedback) return;
+    feedback.textContent = message;
+    feedback.className = `text-xs ${ok ? 'text-green-400' : 'text-red-400'}`;
+}
+
+function updateUploadFileInfo(file = null, isError = false) {
+    const info = document.getElementById('uploadFileInfo');
+    if (!info) return;
+
+    if (!file) {
+        info.textContent = 'No hay archivo seleccionado.';
+        info.className = 'text-xs text-white/70';
+        return;
+    }
+
+    info.textContent = `Archivo seleccionado: ${file.name}`;
+    info.className = `text-xs ${isError ? 'text-red-400' : 'text-green-400'}`;
+}
+
+function validateImageFile(file) {
+    if (!file) return { ok: false, error: 'Selecciona un archivo.' };
+
+    const fileType = (file.type || '').toLowerCase();
+    const fileName = (file.name || '').toLowerCase();
+    const hasAllowedType = ALLOWED_UPLOAD_TYPES.has(fileType);
+    const hasAllowedExtension = ALLOWED_UPLOAD_EXTENSIONS.some((ext) => fileName.endsWith(ext));
+
+    if (!hasAllowedType && !hasAllowedExtension) {
+        return { ok: false, error: 'Formato inválido. Usa JPG, PNG o WEBP.' };
+    }
+
+    if (file.size > MAX_UPLOAD_SIZE) {
+        return { ok: false, error: 'El archivo supera 5MB.' };
+    }
+
+    return { ok: true };
+}
+
+function syncSelectedUploadFile(file) {
+    const input = document.getElementById('imageFileInput');
+    if (!input) return { ok: false };
+
+    if (!file) {
+        input.value = '';
+        updateUploadFileInfo(null);
+        return { ok: false };
+    }
+
+    const validation = validateImageFile(file);
+    if (!validation.ok) {
+        input.value = '';
+        updateUploadFileInfo(file, true);
+        setModalFeedback(validation.error, false);
+        return validation;
+    }
+
+    const transfer = new DataTransfer();
+    transfer.items.add(file);
+    input.files = transfer.files;
+    updateUploadFileInfo(file);
+    setModalFeedback(`Archivo listo: ${file.name}`, true);
+    return { ok: true, file };
+}
+
+async function uploadSelectedImage(file, imageEl) {
+    const objectUrl = URL.createObjectURL(file);
+    imageEl.src = objectUrl;
+
+    const form = new FormData();
+    form.append('key', currentImageKey);
+    form.append('image', file);
+
+    try {
+        const response = await fetch(window.ADMIN_EDITOR_ENDPOINTS.uploadImage, { method: 'POST', body: form });
+        const result = await response.json();
+        if (!response.ok || !result.ok) {
+            setModalFeedback(result.error || 'No se pudo subir la imagen.', false);
+            return;
+        }
+
+        imageEl.src = result.url;
+        setByPath(contentState, currentImageKey, { source_type: 'upload', value: result.url });
+        imageEl.dataset.sourceType = 'upload';
+        fieldMessage(currentImageKey, 'Imagen guardada', true);
+        setModalFeedback('Imagen subida correctamente.', true);
+    } finally {
+        URL.revokeObjectURL(objectUrl);
+    }
+}
+
+
 function normalizeImageUrl(url) {
     if (!url) return '';
     if (/^https?:\/\//i.test(url)) return url;
@@ -105,12 +203,10 @@ async function loadImageLibrary(currentSrc = '') {
 }
 
 async function applyLibrarySelection() {
-    const feedback = document.getElementById('modalFeedback');
     const imageEl = document.querySelector(`[data-edit-key="${currentImageKey}"][data-edit-type="image"]`);
     if (!imageEl) return;
     if (!selectedLibraryUrl) {
-        feedback.textContent = 'Selecciona una imagen de la biblioteca.';
-        feedback.className = 'text-xs text-red-400';
+        setModalFeedback('Selecciona una imagen de la biblioteca.', false);
         return;
     }
 
@@ -120,11 +216,9 @@ async function applyLibrarySelection() {
 
     try {
         await persistContent([currentImageKey]);
-        feedback.textContent = 'Imagen actualizada desde biblioteca.';
-        feedback.className = 'text-xs text-green-400';
+        setModalFeedback('Imagen actualizada desde biblioteca.', true);
     } catch (e) {
-        feedback.textContent = e.message;
-        feedback.className = 'text-xs text-red-400';
+        setModalFeedback(e.message, false);
     }
 }
 
@@ -228,6 +322,7 @@ if (isAuthenticated) {
             selectedLibraryUrl = '';
             switchImageMode(imageEl.dataset.sourceType || 'url');
             document.getElementById('modalFeedback').textContent = '';
+            updateUploadFileInfo(null);
 
             if (imageEl.dataset.sourceType === 'upload') {
                 switchImageMode('library');
@@ -256,16 +351,48 @@ if (isAuthenticated) {
         document.getElementById('imageModal').classList.remove('flex');
     });
 
+    const imageFileInput = document.getElementById('imageFileInput');
+    const uploadDropzone = document.getElementById('uploadDropzone');
+
+    imageFileInput.addEventListener('change', () => {
+        syncSelectedUploadFile(imageFileInput.files[0]);
+    });
+
+    uploadDropzone.addEventListener('click', () => imageFileInput.click());
+    uploadDropzone.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter' || event.key === ' ') {
+            event.preventDefault();
+            imageFileInput.click();
+        }
+    });
+
+    ['dragenter', 'dragover'].forEach((eventName) => {
+        uploadDropzone.addEventListener(eventName, (event) => {
+            event.preventDefault();
+            uploadDropzone.classList.add('ring-2', 'ring-art-neon', 'border-art-neon', 'text-art-neon');
+        });
+    });
+
+    ['dragleave', 'drop'].forEach((eventName) => {
+        uploadDropzone.addEventListener(eventName, (event) => {
+            event.preventDefault();
+            uploadDropzone.classList.remove('ring-2', 'ring-art-neon', 'border-art-neon', 'text-art-neon');
+        });
+    });
+
+    uploadDropzone.addEventListener('drop', (event) => {
+        const droppedFile = event.dataTransfer && event.dataTransfer.files ? event.dataTransfer.files[0] : null;
+        syncSelectedUploadFile(droppedFile);
+    });
+
     document.getElementById('saveModal').addEventListener('click', async () => {
-        const feedback = document.getElementById('modalFeedback');
         const imageEl = document.querySelector(`[data-edit-key="${currentImageKey}"][data-edit-type="image"]`);
         if (!imageEl) return;
 
         if (imageMode === 'url') {
             const newUrl = document.getElementById('imageUrlInput').value.trim();
             if (!/^https?:\/\//i.test(newUrl)) {
-                feedback.textContent = 'Ingresa una URL válida (http/https).';
-                feedback.className = 'text-xs text-red-400';
+                setModalFeedback('Ingresa una URL válida (http/https).', false);
                 return;
             }
             imageEl.src = newUrl;
@@ -273,11 +400,9 @@ if (isAuthenticated) {
             imageEl.dataset.sourceType = 'url';
             try {
                 await persistContent([currentImageKey]);
-                feedback.textContent = 'Imagen actualizada.';
-                feedback.className = 'text-xs text-green-400';
+                setModalFeedback('Imagen actualizada.', true);
             } catch (e) {
-                feedback.textContent = e.message;
-                feedback.className = 'text-xs text-red-400';
+                setModalFeedback(e.message, false);
             }
             return;
         }
@@ -287,36 +412,14 @@ if (isAuthenticated) {
             return;
         }
 
-        const file = document.getElementById('imageFileInput').files[0];
-        if (!file) {
-            feedback.textContent = 'Selecciona un archivo.';
-            feedback.className = 'text-xs text-red-400';
-            return;
-        }
-        if (file.size > 5 * 1024 * 1024) {
-            feedback.textContent = 'El archivo supera 5MB.';
-            feedback.className = 'text-xs text-red-400';
+        const file = imageFileInput.files[0];
+        const validation = validateImageFile(file);
+        if (!validation.ok) {
+            setModalFeedback(validation.error, false);
+            updateUploadFileInfo(file, true);
             return;
         }
 
-        imageEl.src = URL.createObjectURL(file);
-        const form = new FormData();
-        form.append('key', currentImageKey);
-        form.append('image', file);
-
-        const response = await fetch(window.ADMIN_EDITOR_ENDPOINTS.uploadImage, { method: 'POST', body: form });
-        const result = await response.json();
-        if (!response.ok || !result.ok) {
-            feedback.textContent = result.error || 'No se pudo subir la imagen.';
-            feedback.className = 'text-xs text-red-400';
-            return;
-        }
-
-        imageEl.src = result.url;
-        setByPath(contentState, currentImageKey, { source_type: 'upload', value: result.url });
-        imageEl.dataset.sourceType = 'upload';
-        fieldMessage(currentImageKey, 'Imagen guardada', true);
-        feedback.textContent = 'Imagen subida correctamente.';
-        feedback.className = 'text-xs text-green-400';
+        await uploadSelectedImage(file, imageEl);
     });
 }
