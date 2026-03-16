@@ -24,6 +24,21 @@ function admin_content_get(array $data, string $path, string $default = ''): str
     return is_string($current) ? $current : $default;
 }
 
+function admin_content_get_bool(array $data, string $path, bool $default = false): bool
+{
+    $segments = explode('.', $path);
+    $current = $data;
+
+    foreach ($segments as $segment) {
+        if (!is_array($current) || !array_key_exists($segment, $current)) {
+            return $default;
+        }
+        $current = $current[$segment];
+    }
+
+    return is_bool($current) ? $current : $default;
+}
+
 $status = '';
 $error = '';
 
@@ -71,6 +86,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $seoDescription = trim((string) ($_POST['seo_description'] ?? ''));
         $seoKeywords = trim((string) ($_POST['seo_keywords'] ?? ''));
         $ogImage = trim((string) ($_POST['og_image'] ?? ''));
+        $gaMeasurementId = trim((string) ($_POST['ga_measurement_id'] ?? ''));
+        $facebookPixelId = trim((string) ($_POST['facebook_pixel_id'] ?? ''));
+        $gaEnabled = isset($_POST['ga_enabled']);
+        $facebookEnabled = isset($_POST['facebook_enabled']);
 
         if ($seoTitle === '' || $seoDescription === '') {
             $error = 'SEO title y SEO description son obligatorios.';
@@ -87,6 +106,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 'keywords' => $seoKeywords,
                 'og_image' => $ogImage,
             ];
+            $content['site']['analytics'] = [
+                'ga_measurement_id' => $gaMeasurementId,
+                'ga_enabled' => $gaEnabled,
+                'facebook_pixel_id' => $facebookPixelId,
+                'facebook_enabled' => $facebookEnabled,
+            ];
 
             if (!save_content_file($content)) {
                 $error = 'No se pudieron guardar los datos SEO.';
@@ -102,6 +127,10 @@ $seoTitle = admin_content_get($content, 'site.title', '');
 $seoDescription = admin_content_get($content, 'site.seo.description', '');
 $seoKeywords = admin_content_get($content, 'site.seo.keywords', '');
 $ogImage = admin_content_get($content, 'site.seo.og_image', '');
+$gaMeasurementId = admin_content_get($content, 'site.analytics.ga_measurement_id', '');
+$facebookPixelId = admin_content_get($content, 'site.analytics.facebook_pixel_id', '');
+$gaEnabled = admin_content_get_bool($content, 'site.analytics.ga_enabled', false);
+$facebookEnabled = admin_content_get_bool($content, 'site.analytics.facebook_enabled', false);
 ?>
 <!doctype html>
 <html lang="es">
@@ -175,6 +204,24 @@ $ogImage = admin_content_get($content, 'site.seo.og_image', '');
                     <label class="block space-y-2">
                         <span class="text-sm text-slate-300">OG Image URL</span>
                         <input type="url" name="og_image" value="<?= htmlspecialchars($ogImage, ENT_QUOTES, 'UTF-8') ?>" class="w-full rounded-xl border border-white/20 bg-slate-900/60 px-4 py-3 focus:ring-2 focus:ring-cyan-300 outline-none">
+                    </label>
+                    <hr class="border-white/10">
+                    <h3 class="text-lg font-semibold">Analítica</h3>
+                    <label class="block space-y-2">
+                        <span class="text-sm text-slate-300">Google Analytics (GA4) Measurement ID</span>
+                        <input type="text" name="ga_measurement_id" value="<?= htmlspecialchars($gaMeasurementId, ENT_QUOTES, 'UTF-8') ?>" placeholder="G-XXXXXXXXXX" class="w-full rounded-xl border border-white/20 bg-slate-900/60 px-4 py-3 focus:ring-2 focus:ring-cyan-300 outline-none">
+                    </label>
+                    <label class="inline-flex items-center gap-2">
+                        <input type="checkbox" name="ga_enabled" value="1" <?= $gaEnabled ? 'checked' : '' ?> class="rounded border-white/20 bg-slate-900/60 text-cyan-300 focus:ring-cyan-300">
+                        <span class="text-sm text-slate-300">Habilitar Google Analytics</span>
+                    </label>
+                    <label class="block space-y-2">
+                        <span class="text-sm text-slate-300">Facebook Pixel ID</span>
+                        <input type="text" name="facebook_pixel_id" value="<?= htmlspecialchars($facebookPixelId, ENT_QUOTES, 'UTF-8') ?>" placeholder="123456789012345" class="w-full rounded-xl border border-white/20 bg-slate-900/60 px-4 py-3 focus:ring-2 focus:ring-cyan-300 outline-none">
+                    </label>
+                    <label class="inline-flex items-center gap-2">
+                        <input type="checkbox" name="facebook_enabled" value="1" <?= $facebookEnabled ? 'checked' : '' ?> class="rounded border-white/20 bg-slate-900/60 text-cyan-300 focus:ring-cyan-300">
+                        <span class="text-sm text-slate-300">Habilitar Facebook Pixel</span>
                     </label>
                     <button class="rounded-xl bg-fuchsia-300 text-slate-900 font-semibold px-5 py-3 hover:bg-fuchsia-200">Guardar SEO</button>
                 </form>

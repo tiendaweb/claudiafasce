@@ -15,6 +15,12 @@
       "description": "Galería inmersiva de Claudia Nuñez Fasce: obra clásica y visiones digitales.",
       "keywords": "arte, galería, claudia nuñez fasce, óleo, caricatura",
       "og_image": ""
+    },
+    "analytics": {
+      "ga_measurement_id": "",
+      "ga_enabled": false,
+      "facebook_pixel_id": "",
+      "facebook_enabled": false
     }
   },
   "hero": {

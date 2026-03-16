@@ -45,6 +45,25 @@ function resolve_image_source_type($image): string {
     return 'url';
 }
 
+
+function normalize_ga_measurement_id($value): string {
+    $candidate = strtoupper(trim((string) $value));
+    if (preg_match('/^G-[A-Z0-9]{6,20}$/', $candidate) === 1) {
+        return $candidate;
+    }
+
+    return '';
+}
+
+function normalize_facebook_pixel_id($value): string {
+    $candidate = trim((string) $value);
+    if (preg_match('/^[0-9]{5,20}$/', $candidate) === 1) {
+        return $candidate;
+    }
+
+    return '';
+}
+
 $defaults = json_decode(file_get_contents(__DIR__ . '/data/content.seed.json') ?: '{}', true);
 $defaults = is_array($defaults) ? $defaults : [];
 
@@ -92,6 +111,14 @@ $obrasItems = array_map(static function ($item): array {
 }, $obrasItems);
 
 $initialContent = array_replace_recursive($defaults, $content);
+
+$gaMeasurementId = normalize_ga_measurement_id(content_get($initialContent, 'site.analytics.ga_measurement_id', ''));
+$gaEnabled = (bool) content_get($initialContent, 'site.analytics.ga_enabled', false);
+$gaShouldRender = $gaEnabled && $gaMeasurementId !== '';
+
+$facebookPixelId = normalize_facebook_pixel_id(content_get($initialContent, 'site.analytics.facebook_pixel_id', ''));
+$facebookEnabled = (bool) content_get($initialContent, 'site.analytics.facebook_enabled', false);
+$facebookShouldRender = $facebookEnabled && $facebookPixelId !== '';
 ?>
 <!DOCTYPE html>
 <html lang="<?= esc(content_get($initialContent, 'site.lang', 'es')) ?>">
@@ -106,6 +133,30 @@ $initialContent = array_replace_recursive($defaults, $content);
     <meta property="og:image" content="<?= esc(content_get($initialContent, 'site.seo.og_image', resolve_image_url(content_get($initialContent, 'hero.featured_image', [])))) ?>">
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=Inter:wght@300;400;600&display=swap" rel="stylesheet">
+
+    <?php if ($gaShouldRender): ?>
+    <script async src="https://www.googletagmanager.com/gtag/js?id=<?= esc($gaMeasurementId) ?>"></script>
+    <script>
+        window.dataLayer = window.dataLayer || [];
+        function gtag(){dataLayer.push(arguments);}
+        gtag('js', new Date());
+        gtag('config', '<?= esc($gaMeasurementId) ?>');
+    </script>
+    <?php endif; ?>
+    <?php if ($facebookShouldRender): ?>
+    <script>
+        !function(f,b,e,v,n,t,s)
+        {if(f.fbq)return;n=f.fbq=function(){n.callMethod?
+        n.callMethod.apply(n,arguments):n.queue.push(arguments)};
+        if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';
+        n.queue=[];t=b.createElement(e);t.async=!0;
+        t.src=v;s=b.getElementsByTagName(e)[0];
+        s.parentNode.insertBefore(t,s)}(window, document,'script',
+        'https://connect.facebook.net/en_US/fbevents.js');
+        fbq('init', '<?= esc($facebookPixelId) ?>');
+        fbq('track', 'PageView');
+    </script>
+    <?php endif; ?>
     <script>
         tailwind.config = {
             theme: {
@@ -141,6 +192,10 @@ $initialContent = array_replace_recursive($defaults, $content);
     </style>
 </head>
 <body class="text-white selection:bg-art-neon selection:text-black" data-auth="<?= $isLoggedIn ? '1' : '0' ?>">
+
+<?php if ($facebookShouldRender): ?>
+    <noscript><img height="1" width="1" style="display:none" src="https://www.facebook.com/tr?id=<?= esc($facebookPixelId) ?>&ev=PageView&noscript=1" alt="" /></noscript>
+<?php endif; ?>
 <div id="bg-container" class="fixed inset-0 -z-10">
     <?php foreach ($backgrounds as $index => $background): ?>
         <div class="bg-layer<?= $index === 0 ? ' active' : '' ?>" style="background-image: url('<?= esc($background['value'] ?? '') ?>')"></div>

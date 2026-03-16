@@ -51,6 +51,30 @@ function validate_payload(array $data): bool
         }
     }
 
+    if (array_key_exists('analytics', $data['site'])) {
+        if (gettype($data['site']['analytics']) !== 'array') {
+            return false;
+        }
+
+        $analytics = $data['site']['analytics'];
+
+        if (array_key_exists('ga_measurement_id', $analytics) && gettype($analytics['ga_measurement_id']) !== 'string') {
+            return false;
+        }
+
+        if (array_key_exists('facebook_pixel_id', $analytics) && gettype($analytics['facebook_pixel_id']) !== 'string') {
+            return false;
+        }
+
+        if (array_key_exists('ga_enabled', $analytics) && gettype($analytics['ga_enabled']) !== 'boolean') {
+            return false;
+        }
+
+        if (array_key_exists('facebook_enabled', $analytics) && gettype($analytics['facebook_enabled']) !== 'boolean') {
+            return false;
+        }
+    }
+
     $requiredHero = [
         'headline_prefix' => 'string',
         'headline_highlight' => 'string',
