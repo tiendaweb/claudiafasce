@@ -610,7 +610,8 @@ $googleAnalyticsId = admin_content_get($content, 'site.integrations.google_analy
                                 </div>
                             </section>
 
-                            <?php /* Herramienta para dev: dejar desactivada por defecto
+                            <?php $enableTemplateImportSection = false; ?>
+                            <?php if ($enableTemplateImportSection): ?>
                             <section class="glass-card rounded-3xl p-6 md:p-8 relative overflow-hidden">
                                 <header class="flex items-center gap-3 mb-6">
                                     <div class="w-10 h-10 rounded-xl bg-cyan-500/20 border border-cyan-500/30 flex items-center justify-center text-cyan-400">
@@ -627,7 +628,7 @@ $googleAnalyticsId = admin_content_get($content, 'site.integrations.google_analy
                                     </div>
                                 </form>
                             </section>
-                            */ ?>
+                            <?php endif; ?>
                         </div>
 
                         <!-- TAB: SECURITY -->

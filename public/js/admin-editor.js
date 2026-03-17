@@ -142,9 +142,15 @@
         let context = null;
         let selectedLibraryUrl = '';
 
+        function setHidden(element, hidden) {
+            if (!element) return;
+            element.classList.toggle('hidden', hidden);
+            element.style.display = hidden ? 'none' : '';
+        }
+
         function close() {
             if (!root) return;
-            root.classList.add('hidden');
+            setHidden(root, true);
             context = null;
             feedback.textContent = '';
             selectedLibraryUrl = '';
@@ -157,8 +163,8 @@
 
         function switchMode(mode) {
             activeMode = mode;
-            root.querySelectorAll('[data-modal-pane]').forEach((pane) => pane.classList.add('hidden'));
-            root.querySelector(`[data-modal-pane="${mode}"]`)?.classList.remove('hidden');
+            root.querySelectorAll('[data-modal-pane]').forEach((pane) => setHidden(pane, true));
+            setHidden(root.querySelector(`[data-modal-pane="${mode}"]`), false);
             root.querySelectorAll('[data-modal-mode]').forEach((btn) => {
                 btn.classList.toggle('bg-cyan-400', btn.getAttribute('data-modal-mode') === mode);
                 btn.classList.toggle('text-black', btn.getAttribute('data-modal-mode') === mode);
@@ -242,7 +248,7 @@
 
         function init() {
             root = document.createElement('div');
-            root.className = 'hidden fixed inset-0 z-[100000] bg-black/70 px-4 items-center justify-center';
+            root.className = 'fixed inset-0 z-[100000] bg-black/70 px-4 items-center justify-center';
             root.innerHTML = `
             <div class="w-full max-w-xl rounded-2xl border border-white/20 bg-slate-900 text-slate-100 p-6 space-y-4">
                 <div class="flex items-center justify-between gap-3">
@@ -276,7 +282,7 @@
             </div>`;
 
             document.body.appendChild(root);
-            root.style.display = 'flex';
+            root.style.display = 'none';
 
             title = root.querySelector('#adminEditorModalTitle');
             feedback = root.querySelector('#adminEditorModalFeedback');
@@ -333,16 +339,17 @@
                 title.textContent = 'Editar enlace';
                 urlInput.value = nextContext.element.getAttribute('href') || '';
                 switchMode('url');
-                root.querySelector('[data-modal-mode="upload"]')?.classList.add('hidden');
-                root.querySelector('[data-modal-mode="library"]')?.classList.add('hidden');
+                setHidden(root.querySelector('[data-modal-mode="upload"]'), true);
+                setHidden(root.querySelector('[data-modal-mode="library"]'), true);
             } else {
                 title.textContent = 'Editar imagen';
                 urlInput.value = nextContext.element.getAttribute('src') || '';
                 switchMode('url');
-                root.querySelector('[data-modal-mode="upload"]')?.classList.remove('hidden');
-                root.querySelector('[data-modal-mode="library"]')?.classList.remove('hidden');
+                setHidden(root.querySelector('[data-modal-mode="upload"]'), false);
+                setHidden(root.querySelector('[data-modal-mode="library"]'), false);
             }
-            root.classList.remove('hidden');
+            setHidden(root, false);
+            root.style.display = 'flex';
         }
 
         return { open };

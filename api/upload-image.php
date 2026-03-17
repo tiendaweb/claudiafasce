@@ -46,10 +46,10 @@ $originalName = (string) ($file['name'] ?? '');
 $extension = strtolower(pathinfo($originalName, PATHINFO_EXTENSION));
 
 $allowed = [
-    'jpg' => 'image/jpeg',
-    'jpeg' => 'image/jpeg',
-    'png' => 'image/png',
-    'webp' => 'image/webp',
+    'jpg' => ['image/jpeg', 'image/jpg', 'image/pjpeg'],
+    'jpeg' => ['image/jpeg', 'image/jpg', 'image/pjpeg'],
+    'png' => ['image/png'],
+    'webp' => ['image/webp'],
 ];
 
 if (!isset($allowed[$extension])) {
@@ -64,7 +64,7 @@ if (is_resource($finfo)) {
     finfo_close($finfo);
 }
 
-if ($mime !== $allowed[$extension]) {
+if (!in_array($mime, $allowed[$extension], true)) {
     http_response_code(400);
     echo json_encode(['ok' => false, 'error' => 'El MIME no coincide con la extensión']);
     exit;
