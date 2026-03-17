@@ -217,204 +217,502 @@ $facebookPixelId = admin_content_get($content, 'site.integrations.facebook_pixel
 $googleAnalyticsId = admin_content_get($content, 'site.integrations.google_analytics_id', '');
 ?>
 <!doctype html>
-<html lang="es">
+<html lang="es" class="antialiased">
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Admin Dashboard</title>
+    <title>Admin OS | Liquid Glass</title>
+    
+    <!-- Fonts & Icons -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+
+    <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: { sans: ['Inter', 'sans-serif'] },
+                    colors: {
+                        glass: {
+                            100: 'rgba(255, 255, 255, 0.03)',
+                            200: 'rgba(255, 255, 255, 0.05)',
+                            300: 'rgba(255, 255, 255, 0.08)',
+                            border: 'rgba(255, 255, 255, 0.1)',
+                            highlight: 'rgba(255, 255, 255, 0.15)',
+                        }
+                    },
+                    animation: {
+                        'blob': 'blob 10s infinite',
+                        'blob-reverse': 'blob-reverse 12s infinite',
+                    },
+                    keyframes: {
+                        blob: {
+                            '0%, 100%': { transform: 'translate(0, 0) scale(1)' },
+                            '33%': { transform: 'translate(30px, -50px) scale(1.1)' },
+                            '66%': { transform: 'translate(-20px, 20px) scale(0.9)' },
+                        },
+                        'blob-reverse': {
+                            '0%, 100%': { transform: 'translate(0, 0) scale(1)' },
+                            '33%': { transform: 'translate(-30px, 50px) scale(1.1)' },
+                            '66%': { transform: 'translate(20px, -20px) scale(0.9)' },
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+
     <style>
-        body { background: radial-gradient(circle at top, #15324d 0%, #090d18 55%, #04050b 100%); }
-        .glass { background: linear-gradient(135deg, rgba(255,255,255,0.16), rgba(255,255,255,0.04)); backdrop-filter: blur(18px); border: 1px solid rgba(255,255,255,0.25); }
+        body { 
+            background-color: #050505;
+            color: #f1f5f9;
+            overflow: hidden;
+        }
+        
+        .glass-panel { 
+            background: linear-gradient(135deg, var(--tw-colors-glass-200), var(--tw-colors-glass-100));
+            backdrop-filter: blur(40px);
+            -webkit-backdrop-filter: blur(40px);
+            border: 1px solid var(--tw-colors-glass-border);
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3), inset 0 1px 0 0 var(--tw-colors-glass-highlight);
+        }
+
+        .glass-card {
+            background: rgba(255, 255, 255, 0.02);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            box-shadow: 0 4px 24px -1px rgba(0, 0, 0, 0.2);
+            transition: all 0.3s ease;
+        }
+
+        .glass-card:hover {
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .glass-input {
+            background: rgba(0, 0, 0, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            color: #f8fafc;
+            transition: all 0.2s;
+        }
+        .glass-input:focus {
+            background: rgba(0, 0, 0, 0.4);
+            border-color: rgba(34, 211, 238, 0.5);
+            box-shadow: 0 0 0 2px rgba(34, 211, 238, 0.15), inset 0 1px 0 0 rgba(255,255,255,0.05);
+            outline: none;
+        }
+        .glass-input::placeholder { color: rgba(255, 255, 255, 0.3); }
+
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.2); }
+
+        .bg-blobs {
+            position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+            z-index: -1; overflow: hidden; pointer-events: none;
+        }
+        .blob { position: absolute; filter: blur(100px); opacity: 0.6; border-radius: 50%; }
+        .blob-1 { top: -10%; left: -10%; width: 50vw; height: 50vw; background: radial-gradient(circle, rgba(14,165,233,0.4) 0%, rgba(0,0,0,0) 70%); }
+        .blob-2 { bottom: -20%; right: -10%; width: 60vw; height: 60vw; background: radial-gradient(circle, rgba(139,92,246,0.3) 0%, rgba(0,0,0,0) 70%); }
+        .blob-3 { top: 40%; left: 40%; width: 40vw; height: 40vw; background: radial-gradient(circle, rgba(16,185,129,0.2) 0%, rgba(0,0,0,0) 70%); }
+
+        /* Tabs logic */
+        .tab-content { display: none; }
+        .tab-content.active { display: block; animation: fadeIn 0.4s ease-out; }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .nav-link.active {
+            background: rgba(255, 255, 255, 0.1);
+            color: #fff;
+            border-color: rgba(255, 255, 255, 0.05);
+            box-shadow: inset 0 0 20px rgba(0,0,0,0.2);
+        }
+        .nav-link.active i { color: #22d3ee; }
     </style>
 </head>
-<body class="min-h-screen text-slate-100">
-    <div class="max-w-7xl mx-auto p-6 md:p-10 space-y-8">
-        <header class="glass rounded-3xl p-6 md:p-8 flex flex-col md:flex-row justify-between gap-4">
-            <div>
-                <p class="text-cyan-200 text-xs uppercase tracking-[0.2em]">Liquid Glass Premium SaaS</p>
-                <h1 class="text-3xl md:text-4xl font-semibold">Dashboard Administrativo</h1>
-                <p class="text-slate-300 mt-2">Sesión iniciada como <?= htmlspecialchars((string) ($user['name'] ?? $user['username'] ?? ''), ENT_QUOTES, 'UTF-8') ?></p>
-            </div>
-            <div class="flex items-start">
-                <a href="<?= htmlspecialchars(url_for('/logout'), ENT_QUOTES, 'UTF-8') ?>" class="rounded-xl bg-white/10 border border-white/20 px-4 py-2 hover:bg-white/20">Cerrar sesión</a>
-            </div>
-        </header>
+<body class="text-slate-200 text-sm md:text-base selection:bg-cyan-500/30">
 
-        <?php if ($status !== ''): ?>
-            <div class="rounded-xl border border-emerald-300/40 bg-emerald-400/10 text-emerald-200 p-4"><?= htmlspecialchars($status, ENT_QUOTES, 'UTF-8') ?></div>
-        <?php endif; ?>
-        <?php if ($error !== ''): ?>
-            <div class="rounded-xl border border-red-300/40 bg-red-400/10 text-red-200 p-4"><?= htmlspecialchars($error, ENT_QUOTES, 'UTF-8') ?></div>
-        <?php endif; ?>
+    <div class="bg-blobs">
+        <div class="blob blob-1 animate-blob"></div>
+        <div class="blob blob-2 animate-blob-reverse"></div>
+        <div class="blob blob-3 animate-blob" style="animation-delay: 2s;"></div>
+    </div>
 
-        <div class="grid lg:grid-cols-2 gap-6">
-            <section class="glass rounded-3xl p-6 md:p-8">
-                <h2 class="text-xl font-semibold mb-5">Cambiar contraseña</h2>
-                <form method="post" class="space-y-4">
-                    <input type="hidden" name="action" value="change_password">
-                    <label class="block space-y-2">
-                        <span class="text-sm text-slate-300">Contraseña actual</span>
-                        <input type="password" name="current_password" required class="w-full rounded-xl border border-white/20 bg-slate-900/60 px-4 py-3 focus:ring-2 focus:ring-cyan-300 outline-none">
-                    </label>
-                    <label class="block space-y-2">
-                        <span class="text-sm text-slate-300">Nueva contraseña</span>
-                        <input type="password" name="new_password" required class="w-full rounded-xl border border-white/20 bg-slate-900/60 px-4 py-3 focus:ring-2 focus:ring-cyan-300 outline-none">
-                    </label>
-                    <label class="block space-y-2">
-                        <span class="text-sm text-slate-300">Confirmar nueva contraseña</span>
-                        <input type="password" name="confirm_password" required class="w-full rounded-xl border border-white/20 bg-slate-900/60 px-4 py-3 focus:ring-2 focus:ring-cyan-300 outline-none">
-                    </label>
-                    <button class="rounded-xl bg-cyan-300 text-slate-900 font-semibold px-5 py-3 hover:bg-cyan-200">Actualizar contraseña</button>
-                </form>
-            </section>
-
-
-            <section class="glass rounded-3xl p-6 md:p-8">
-                <h2 class="text-xl font-semibold mb-5">Plantilla activa</h2>
-                <form method="post" class="space-y-4">
-                    <input type="hidden" name="action" value="update_template">
-                    <label class="block space-y-2">
-                        <span class="text-sm text-slate-300">Seleccionar plantilla</span>
-                        <select name="site_template" class="w-full rounded-xl border border-white/20 bg-slate-900/60 px-4 py-3 focus:ring-2 focus:ring-cyan-300 outline-none" required>
-                            <?php foreach ($availableTemplates as $templateSlug): ?>
-                                <option value="<?= htmlspecialchars($templateSlug, ENT_QUOTES, 'UTF-8') ?>" <?= $templateSlug === $activeTemplate ? 'selected' : '' ?>>
-                                    <?= htmlspecialchars(ucfirst($templateSlug), ENT_QUOTES, 'UTF-8') ?>
-                                </option>
-                            <?php endforeach; ?>
-                        </select>
-                    </label>
-                    <button class="rounded-xl bg-amber-300 text-slate-900 font-semibold px-5 py-3 hover:bg-amber-200">Guardar plantilla</button>
-                </form>
-
-                <div class="mt-6 space-y-3">
-                    <p class="text-sm text-slate-300">Borrar plantilla (si solo hay una, no se puede borrar)</p>
-                    <?php foreach ($availableTemplates as $templateSlug): ?>
-                        <?php $canDelete = count($availableTemplates) > 1; ?>
-                        <form method="post" class="flex items-center justify-between gap-3 rounded-xl border border-white/15 bg-slate-900/40 p-3">
-                            <input type="hidden" name="action" value="delete_template">
-                            <input type="hidden" name="delete_template_slug" value="<?= htmlspecialchars($templateSlug, ENT_QUOTES, 'UTF-8') ?>">
-                            <div class="text-sm">
-                                <p class="font-semibold text-slate-100"><?= htmlspecialchars($templateSlug, ENT_QUOTES, 'UTF-8') ?></p>
-                                <?php if ($templateSlug === $activeTemplate): ?>
-                                    <p class="text-xs text-cyan-200">Activa</p>
-                                <?php endif; ?>
-                            </div>
-                            <button class="rounded-lg px-3 py-2 font-semibold <?= $canDelete ? 'bg-red-300 text-slate-900 hover:bg-red-200' : 'bg-slate-700 text-slate-300 cursor-not-allowed' ?>" <?= $canDelete ? '' : 'disabled' ?>>
-                                Borrar
-                            </button>
-                        </form>
-                    <?php endforeach; ?>
-                </div>
-            </section>
-
-            <section class="glass rounded-3xl p-6 md:p-8">
-                <h2 class="text-xl font-semibold mb-5">Datos SEO</h2>
-                <form method="post" class="space-y-4">
-                    <input type="hidden" name="action" value="update_seo">
-                    <label class="block space-y-2">
-                        <span class="text-sm text-slate-300">SEO Title</span>
-                        <input type="text" name="seo_title" required value="<?= htmlspecialchars($seoTitle, ENT_QUOTES, 'UTF-8') ?>" class="w-full rounded-xl border border-white/20 bg-slate-900/60 px-4 py-3 focus:ring-2 focus:ring-cyan-300 outline-none">
-                    </label>
-                    <label class="block space-y-2">
-                        <span class="text-sm text-slate-300">SEO Description</span>
-                        <textarea name="seo_description" required rows="3" class="w-full rounded-xl border border-white/20 bg-slate-900/60 px-4 py-3 focus:ring-2 focus:ring-cyan-300 outline-none"><?= htmlspecialchars($seoDescription, ENT_QUOTES, 'UTF-8') ?></textarea>
-                    </label>
-                    <label class="block space-y-2">
-                        <span class="text-sm text-slate-300">SEO Keywords</span>
-                        <input type="text" name="seo_keywords" value="<?= htmlspecialchars($seoKeywords, ENT_QUOTES, 'UTF-8') ?>" class="w-full rounded-xl border border-white/20 bg-slate-900/60 px-4 py-3 focus:ring-2 focus:ring-cyan-300 outline-none">
-                    </label>
-                    <label class="block space-y-2">
-                        <span class="text-sm text-slate-300">OG Image URL</span>
-                        <input type="url" name="og_image" value="<?= htmlspecialchars($ogImage, ENT_QUOTES, 'UTF-8') ?>" class="w-full rounded-xl border border-white/20 bg-slate-900/60 px-4 py-3 focus:ring-2 focus:ring-cyan-300 outline-none">
-                    </label>
-                    <button class="rounded-xl bg-fuchsia-300 text-slate-900 font-semibold px-5 py-3 hover:bg-fuchsia-200">Guardar SEO</button>
-                </form>
-            </section>
-
-            <section class="glass rounded-3xl p-6 md:p-8">
-                <h2 class="text-xl font-semibold mb-5">Dominio e integraciones</h2>
-                <form method="post" class="space-y-4">
-                    <input type="hidden" name="action" value="update_integrations">
-                    <label class="block space-y-2">
-                        <span class="text-sm text-slate-300">Dominio personalizado</span>
-                        <input type="text" name="site_domain" placeholder="midominio.com" value="<?= htmlspecialchars($siteDomain, ENT_QUOTES, 'UTF-8') ?>" class="w-full rounded-xl border border-white/20 bg-slate-900/60 px-4 py-3 focus:ring-2 focus:ring-cyan-300 outline-none">
-                        <span class="text-xs text-slate-400">Configura este dominio en DNS apuntando al hosting de esta app.</span>
-                    </label>
-                    <label class="block space-y-2">
-                        <span class="text-sm text-slate-300">Facebook Pixel ID</span>
-                        <input type="text" name="facebook_pixel_id" placeholder="123456789012345" value="<?= htmlspecialchars($facebookPixelId, ENT_QUOTES, 'UTF-8') ?>" class="w-full rounded-xl border border-white/20 bg-slate-900/60 px-4 py-3 focus:ring-2 focus:ring-cyan-300 outline-none">
-                    </label>
-                    <label class="block space-y-2">
-                        <span class="text-sm text-slate-300">Google Analytics ID</span>
-                        <input type="text" name="google_analytics_id" placeholder="G-XXXXXXXXXX" value="<?= htmlspecialchars($googleAnalyticsId, ENT_QUOTES, 'UTF-8') ?>" class="w-full rounded-xl border border-white/20 bg-slate-900/60 px-4 py-3 focus:ring-2 focus:ring-cyan-300 outline-none">
-                    </label>
-                    <button class="rounded-xl bg-lime-300 text-slate-900 font-semibold px-5 py-3 hover:bg-lime-200">Guardar integraciones</button>
-                </form>
-            </section>
-
-
-            <section class="glass rounded-3xl p-6 md:p-8 lg:col-span-2">
-                <h2 class="text-xl font-semibold mb-5">Importar HTML a Plantilla</h2>
-                <form id="import-template-form" class="space-y-4">
-                    <label class="block space-y-2">
-                        <span class="text-sm text-slate-300">Slug de plantilla destino</span>
-                        <input type="text" name="import_slug" placeholder="landing-nueva" required class="w-full rounded-xl border border-white/20 bg-slate-900/60 px-4 py-3 focus:ring-2 focus:ring-cyan-300 outline-none">
-                    </label>
-                    <label class="block space-y-2">
-                        <span class="text-sm text-slate-300">HTML completo</span>
-                        <textarea name="import_html" rows="12" placeholder="<!doctype html>..." required class="w-full rounded-xl border border-white/20 bg-slate-900/60 px-4 py-3 font-mono text-sm focus:ring-2 focus:ring-cyan-300 outline-none"></textarea>
-                    </label>
-                    <div class="flex items-center gap-3">
-                        <button id="import-template-submit" class="rounded-xl bg-emerald-300 text-slate-900 font-semibold px-5 py-3 hover:bg-emerald-200">Importar plantilla</button>
-                        <p id="import-template-status" class="text-sm text-slate-300"></p>
+    <div class="h-screen w-screen p-0 sm:p-4 md:p-6 lg:p-8 flex items-center justify-center">
+        <div class="glass-panel w-full h-full max-w-[1600px] sm:rounded-[2rem] flex flex-col md:flex-row overflow-hidden relative">
+            
+            <!-- Sidebar / Dock -->
+            <aside class="w-full md:w-64 lg:w-72 border-b md:border-b-0 md:border-r border-white/10 flex flex-col bg-black/20 backdrop-blur-md flex-shrink-0">
+                <div class="p-6 md:p-8 flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-cyan-400 to-blue-600 flex items-center justify-center shadow-[0_0_20px_rgba(34,211,238,0.4)]">
+                        <i class="ph ph-drop text-xl text-white"></i>
                     </div>
-                </form>
-            </section>
+                    <div>
+                        <h2 class="font-bold text-lg tracking-tight text-white leading-none">AAPP SPACE</h2>
+                        <span class="text-[10px] text-cyan-300 uppercase tracking-widest font-semibold">Dashboard</span>
+                    </div>
+                </div>
+
+                <nav class="flex-1 px-4 md:px-6 py-2 space-y-1 overflow-y-auto" id="main-nav">
+                    <div class="text-[11px] font-semibold text-slate-500 uppercase tracking-wider mb-3 mt-4 px-2">General</div>
+                    <button data-tab="tab-dashboard" class="nav-link w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-slate-400 hover:text-white hover:bg-white/5 transition-all active">
+                        <i class="ph ph-squares-four text-lg"></i> Dashboard
+                    </button>
+                    
+                    <div class="text-[11px] font-semibold text-slate-500 uppercase tracking-wider mb-3 mt-8 px-2">Sistema</div>
+                    <button data-tab="tab-seo" class="nav-link w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-slate-400 hover:text-white hover:bg-white/5 transition-all">
+                        <i class="ph ph-magnifying-glass text-lg"></i> SEO & Meta
+                    </button>
+                    <button data-tab="tab-integrations" class="nav-link w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-slate-400 hover:text-white hover:bg-white/5 transition-all">
+                        <i class="ph ph-plugs-connected text-lg"></i> Integraciones
+                    </button>
+                    <button data-tab="tab-templates" class="nav-link w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-slate-400 hover:text-white hover:bg-white/5 transition-all">
+                        <i class="ph ph-layout text-lg"></i> Plantillas
+                    </button>
+                    <button data-tab="tab-security" class="nav-link w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-slate-400 hover:text-white hover:bg-white/5 transition-all">
+                        <i class="ph ph-shield-check text-lg"></i> Seguridad
+                    </button>
+                </nav>
+
+                <div class="p-4 md:p-6 border-t border-white/10">
+                    <div class="flex items-center gap-3 px-3 py-2 mb-4">
+                        <div class="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center border border-white/20">
+                            <i class="ph ph-user text-slate-300"></i>
+                        </div>
+                        <div class="overflow-hidden">
+                            <p class="text-xs text-slate-400 truncate">Sesión iniciada</p>
+                            <p class="text-sm font-medium text-white truncate"><?= htmlspecialchars((string) ($user['name'] ?? $user['username'] ?? ''), ENT_QUOTES, 'UTF-8') ?></p>
+                        </div>
+                    </div>
+                    <a href="<?= htmlspecialchars(url_for('/logout'), ENT_QUOTES, 'UTF-8') ?>" class="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-rose-400 hover:text-rose-300 hover:bg-rose-500/10 border border-transparent hover:border-rose-500/20 transition-all text-sm font-medium">
+                        <i class="ph ph-sign-out text-lg"></i> Cerrar sesión
+                    </a>
+                </div>
+            </aside>
+
+            <!-- Main Content Area -->
+            <main class="flex-1 overflow-y-auto scroll-smooth relative h-full">
+                
+                <header class="sticky top-0 z-20 px-6 py-5 md:px-10 md:py-8 flex flex-col md:flex-row md:items-center justify-between gap-4 bg-black/10 backdrop-blur-xl border-b border-white/5">
+                    <div>
+                        <h1 class="text-2xl md:text-3xl font-bold text-white tracking-tight" id="active-tab-title">Panel de Control</h1>
+                        <p class="text-slate-400 text-sm mt-1 flex items-center gap-2">
+                            <span class="w-2 h-2 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.8)]"></span>
+                            Sistema operativo y en línea
+                        </p>
+                    </div>
+                    <div class="flex items-center gap-3">
+                        <button class="w-10 h-10 rounded-full glass-card flex items-center justify-center text-slate-300 hover:text-white">
+                            <i class="ph ph-bell text-lg"></i>
+                        </button>
+                    </div>
+                </header>
+
+                <div class="p-6 md:p-10 space-y-8 max-w-7xl mx-auto">
+                    
+                    <?php if ($status !== ''): ?>
+                        <div class="rounded-2xl border border-emerald-500/30 bg-emerald-500/10 backdrop-blur-md p-4 flex items-start gap-3 shadow-[0_0_30px_rgba(16,185,129,0.1)]">
+                            <i class="ph-fill ph-check-circle text-emerald-400 text-xl mt-0.5"></i>
+                            <div>
+                                <h4 class="text-emerald-300 font-semibold text-sm">Operación exitosa</h4>
+                                <p class="text-emerald-200/80 text-sm mt-0.5"><?= htmlspecialchars($status, ENT_QUOTES, 'UTF-8') ?></p>
+                            </div>
+                        </div>
+                    <?php endif; ?>
+                    
+                    <?php if ($error !== ''): ?>
+                        <div class="rounded-2xl border border-rose-500/30 bg-rose-500/10 backdrop-blur-md p-4 flex items-start gap-3 shadow-[0_0_30px_rgba(244,63,94,0.1)]">
+                            <i class="ph-fill ph-warning-circle text-rose-400 text-xl mt-0.5"></i>
+                            <div>
+                                <h4 class="text-rose-300 font-semibold text-sm">Atención requerida</h4>
+                                <p class="text-rose-200/80 text-sm mt-0.5"><?= htmlspecialchars($error, ENT_QUOTES, 'UTF-8') ?></p>
+                            </div>
+                        </div>
+                    <?php endif; ?>
+
+                    <!-- TABS CONTAINER -->
+                    <div id="tabs-container">
+
+                        <!-- TAB: DASHBOARD -->
+                        <div id="tab-dashboard" class="tab-content active space-y-8">
+                            <!-- Aviso de Edición -->
+                            <div class="glass-card rounded-3xl p-6 md:p-8 flex flex-col md:flex-row items-center justify-between gap-6 border-cyan-500/20 bg-cyan-500/5">
+                                <div class="flex items-center gap-4">
+                                    <div class="w-12 h-12 rounded-2xl bg-cyan-500/20 flex items-center justify-center text-cyan-400">
+                                        <i class="ph ph-info text-2xl"></i>
+                                    </div>
+                                    <div>
+                                        <h3 class="text-lg font-semibold text-white">Edición de Contenido Web</h3>
+                                        <p class="text-slate-400 text-sm">Los textos, imágenes y enlaces se editan directamente desde la página web principal para una experiencia visual en tiempo real.</p>
+                                    </div>
+                                </div>
+                                <a href="/" class="shrink-0 flex items-center gap-2 px-6 py-3 rounded-xl bg-white/10 hover:bg-white/20 text-white font-semibold border border-white/10 transition-all">
+                                    <i class="ph ph-browser text-lg"></i>
+                                    Ir a la web principal
+                                </a>
+                            </div>
+
+                            <div class="grid md:grid-cols-3 gap-6">
+                                <div class="glass-card rounded-2xl p-6">
+                                    <p class="text-xs font-semibold text-slate-500 uppercase">Estado del Servidor</p>
+                                    <p class="text-2xl font-bold text-white mt-2">Óptimo</p>
+                                </div>
+                                <div class="glass-card rounded-2xl p-6">
+                                    <p class="text-xs font-semibold text-slate-500 uppercase">Plantilla Actual</p>
+                                    <p class="text-2xl font-bold text-white mt-2"><?= htmlspecialchars(ucfirst($activeTemplate)) ?></p>
+                                </div>
+                                <div class="glass-card rounded-2xl p-6">
+                                    <p class="text-xs font-semibold text-slate-500 uppercase">Versión del Sistema</p>
+                                    <p class="text-2xl font-bold text-white mt-2">v4.2.0</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- TAB: SEO -->
+                        <div id="tab-seo" class="tab-content">
+                            <section id="settings-seo" class="glass-card rounded-3xl p-6 md:p-8 relative overflow-hidden">
+                                <header class="flex items-center gap-3 mb-6">
+                                    <div class="w-10 h-10 rounded-xl bg-fuchsia-500/20 border border-fuchsia-500/30 flex items-center justify-center text-fuchsia-400">
+                                        <i class="ph ph-magnifying-glass text-xl"></i>
+                                    </div>
+                                    <h2 class="text-xl font-semibold text-white">Motor de Búsqueda (SEO)</h2>
+                                </header>
+                                <form method="post" class="space-y-4">
+                                    <input type="hidden" name="action" value="update_seo">
+                                    <label class="block space-y-1.5">
+                                        <span class="text-xs font-medium text-slate-400 uppercase tracking-wider">Título de Página</span>
+                                        <input type="text" name="seo_title" required value="<?= htmlspecialchars($seoTitle, ENT_QUOTES, 'UTF-8') ?>" class="w-full glass-input rounded-xl px-4 py-2.5">
+                                    </label>
+                                    <label class="block space-y-1.5">
+                                        <span class="text-xs font-medium text-slate-400 uppercase tracking-wider">Descripción (Meta)</span>
+                                        <textarea name="seo_description" required rows="2" class="w-full glass-input rounded-xl px-4 py-2.5 resize-none"><?= htmlspecialchars($seoDescription, ENT_QUOTES, 'UTF-8') ?></textarea>
+                                    </label>
+                                    <label class="block space-y-1.5">
+                                        <span class="text-xs font-medium text-slate-400 uppercase tracking-wider">Palabras Clave</span>
+                                        <input type="text" name="seo_keywords" value="<?= htmlspecialchars($seoKeywords, ENT_QUOTES, 'UTF-8') ?>" class="w-full glass-input rounded-xl px-4 py-2.5">
+                                    </label>
+                                    <label class="block space-y-1.5">
+                                        <span class="text-xs font-medium text-slate-400 uppercase tracking-wider">Imagen Social (OG)</span>
+                                        <div class="relative">
+                                            <i class="ph ph-link absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400"></i>
+                                            <input type="url" name="og_image" placeholder="https://" value="<?= htmlspecialchars($ogImage, ENT_QUOTES, 'UTF-8') ?>" class="w-full glass-input rounded-xl pl-10 pr-4 py-2.5">
+                                        </div>
+                                    </label>
+                                    <button class="w-full mt-2 rounded-xl bg-gradient-to-r from-fuchsia-500 to-purple-600 text-white font-semibold px-5 py-3 shadow-lg transition-all">
+                                        Indexar Cambios
+                                    </button>
+                                </form>
+                            </section>
+                        </div>
+
+                        <!-- TAB: INTEGRATIONS -->
+                        <div id="tab-integrations" class="tab-content">
+                            <section id="settings-integrations" class="glass-card rounded-3xl p-6 md:p-8 relative overflow-hidden">
+                                <header class="flex items-center gap-3 mb-6">
+                                    <div class="w-10 h-10 rounded-xl bg-lime-500/20 border border-lime-500/30 flex items-center justify-center text-lime-400">
+                                        <i class="ph ph-plugs-connected text-xl"></i>
+                                    </div>
+                                    <h2 class="text-xl font-semibold text-white">Dominio & Telemetría</h2>
+                                </header>
+                                <form method="post" class="space-y-4">
+                                    <input type="hidden" name="action" value="update_integrations">
+                                    <label class="block space-y-1.5">
+                                        <span class="text-xs font-medium text-slate-400 uppercase tracking-wider">Dominio Enlazado</span>
+                                        <div class="relative">
+                                            <i class="ph ph-globe absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400"></i>
+                                            <input type="text" name="site_domain" placeholder="app.midominio.com" value="<?= htmlspecialchars($siteDomain, ENT_QUOTES, 'UTF-8') ?>" class="w-full glass-input rounded-xl pl-10 pr-4 py-2.5 font-mono text-sm">
+                                        </div>
+                                    </label>
+                                    <label class="block space-y-1.5 pt-2">
+                                        <span class="text-xs font-medium text-slate-400 uppercase tracking-wider">Facebook Pixel ID</span>
+                                        <div class="relative">
+                                            <i class="ph ph-meta-logo absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400"></i>
+                                            <input type="text" name="facebook_pixel_id" placeholder="123456789" value="<?= htmlspecialchars($facebookPixelId, ENT_QUOTES, 'UTF-8') ?>" class="w-full glass-input rounded-xl pl-10 pr-4 py-2.5 font-mono text-sm">
+                                        </div>
+                                    </label>
+                                    <label class="block space-y-1.5 pt-2">
+                                        <span class="text-xs font-medium text-slate-400 uppercase tracking-wider">Google Analytics ID</span>
+                                        <div class="relative">
+                                            <i class="ph ph-chart-line-up absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400"></i>
+                                            <input type="text" name="google_analytics_id" placeholder="G-XXXXXX" value="<?= htmlspecialchars($googleAnalyticsId, ENT_QUOTES, 'UTF-8') ?>" class="w-full glass-input rounded-xl pl-10 pr-4 py-2.5 font-mono text-sm uppercase">
+                                        </div>
+                                    </label>
+                                    <button class="w-full mt-4 rounded-xl bg-gradient-to-r from-lime-400 to-emerald-500 text-black font-semibold px-5 py-3 shadow-lg transition-all">
+                                        Sincronizar APIs
+                                    </button>
+                                </form>
+                            </section>
+                        </div>
+
+                        <!-- TAB: TEMPLATES -->
+                        <div id="tab-templates" class="tab-content space-y-8">
+                            <section id="settings-templates" class="glass-card rounded-3xl p-6 md:p-8 flex flex-col relative overflow-hidden">
+                                <header class="flex items-center gap-3 mb-6">
+                                    <div class="w-10 h-10 rounded-xl bg-amber-500/20 border border-amber-500/30 flex items-center justify-center text-amber-400">
+                                        <i class="ph ph-paint-brush-broad text-xl"></i>
+                                    </div>
+                                    <h2 class="text-xl font-semibold text-white">Plantilla Activa</h2>
+                                </header>
+                                <form method="post" class="space-y-5">
+                                    <input type="hidden" name="action" value="update_template">
+                                    <select name="site_template" class="w-full glass-input rounded-xl px-4 py-3 appearance-none cursor-pointer" required>
+                                        <?php foreach ($availableTemplates as $templateSlug): ?>
+                                            <option class="bg-slate-900 text-white" value="<?= htmlspecialchars($templateSlug, ENT_QUOTES, 'UTF-8') ?>" <?= $templateSlug === $activeTemplate ? 'selected' : '' ?>>
+                                                <?= htmlspecialchars(ucfirst($templateSlug)) ?>
+                                            </option>
+                                        <?php endforeach; ?>
+                                    </select>
+                                    <button class="w-full rounded-xl bg-gradient-to-r from-amber-400 to-orange-500 text-black font-semibold px-5 py-3 shadow-lg transition-all">
+                                        Aplicar Plantilla
+                                    </button>
+                                </form>
+                                <div class="mt-8 pt-6 border-t border-white/10">
+                                    <p class="text-xs font-medium text-slate-400 uppercase tracking-wider mb-3">Gestión de Archivos</p>
+                                    <div class="space-y-2">
+                                        <?php foreach ($availableTemplates as $templateSlug): ?>
+                                            <?php $canDelete = count($availableTemplates) > 1; ?>
+                                            <form method="post" class="flex items-center justify-between gap-3 rounded-xl border border-white/5 bg-black/20 p-3">
+                                                <input type="hidden" name="action" value="delete_template">
+                                                <input type="hidden" name="delete_template_slug" value="<?= htmlspecialchars($templateSlug) ?>">
+                                                <span class="text-sm font-medium text-slate-200"><?= htmlspecialchars($templateSlug) ?></span>
+                                                <button class="w-8 h-8 flex items-center justify-center rounded-lg <?= $canDelete ? 'text-slate-400 hover:text-rose-400' : 'text-slate-700' ?>" <?= $canDelete ? '' : 'disabled' ?>>
+                                                    <i class="ph ph-trash text-lg"></i>
+                                                </button>
+                                            </form>
+                                        <?php endforeach; ?>
+                                    </div>
+                                </div>
+                            </section>
+
+                            <!-- Editor HTML Avanzado -->
+                            <section class="glass-card rounded-3xl p-6 md:p-8 relative overflow-hidden">
+                                <header class="flex items-center gap-3 mb-6">
+                                    <div class="w-10 h-10 rounded-xl bg-cyan-500/20 border border-cyan-500/30 flex items-center justify-center text-cyan-400">
+                                        <i class="ph ph-code-block text-xl"></i>
+                                    </div>
+                                    <h2 class="text-xl font-semibold text-white">Consola de Importación HTML</h2>
+                                </header>
+                                <form id="import-template-form" class="space-y-5">
+                                    <input type="text" name="import_slug" placeholder="Slug de plantilla" required class="w-full glass-input rounded-xl px-4 py-2.5 font-mono text-sm">
+                                    <textarea name="import_html" rows="8" placeholder="<!doctype html>..." required class="w-full glass-input rounded-xl px-4 py-4 font-mono text-[13px] leading-relaxed resize-y"></textarea>
+                                    <div class="flex items-center justify-between">
+                                        <p id="import-template-status" class="text-xs text-slate-500"></p>
+                                        <button id="import-template-submit" class="rounded-xl bg-cyan-400 text-black font-semibold px-6 py-3 transition-all">Ejecutar Importación</button>
+                                    </div>
+                                </form>
+                            </section>
+                        </div>
+
+                        <!-- TAB: SECURITY -->
+                        <div id="tab-security" class="tab-content">
+                            <section id="settings-security" class="glass-card rounded-3xl p-6 md:p-8 relative overflow-hidden max-w-2xl">
+                                <header class="flex items-center gap-3 mb-6">
+                                    <div class="w-10 h-10 rounded-xl bg-rose-500/20 border border-rose-500/30 flex items-center justify-center text-rose-400">
+                                        <i class="ph ph-shield-check text-xl"></i>
+                                    </div>
+                                    <h2 class="text-xl font-semibold text-white">Seguridad de Acceso</h2>
+                                </header>
+                                <form method="post" class="space-y-4">
+                                    <input type="hidden" name="action" value="change_password">
+                                    <label class="block space-y-1.5">
+                                        <span class="text-xs font-medium text-slate-400 uppercase tracking-wider">Contraseña Actual</span>
+                                        <input type="password" name="current_password" required class="w-full glass-input rounded-xl px-4 py-2.5">
+                                    </label>
+                                    <div class="grid grid-cols-2 gap-4">
+                                        <label class="block space-y-1.5">
+                                            <span class="text-xs font-medium text-slate-400 uppercase tracking-wider">Nueva Clave</span>
+                                            <input type="password" name="new_password" required class="w-full glass-input rounded-xl px-4 py-2.5">
+                                        </label>
+                                        <label class="block space-y-1.5">
+                                            <span class="text-xs font-medium text-slate-400 uppercase tracking-wider">Confirmar</span>
+                                            <input type="password" name="confirm_password" required class="w-full glass-input rounded-xl px-4 py-2.5">
+                                        </label>
+                                    </div>
+                                    <button class="w-full mt-2 rounded-xl bg-gradient-to-r from-rose-500 to-pink-600 text-white font-semibold px-5 py-3 shadow-lg transition-all">
+                                        Actualizar Credenciales
+                                    </button>
+                                </form>
+                            </section>
+                        </div>
+
+                    </div>
+                    
+                    <!-- Footer -->
+                    <footer class="pt-8 pb-4 text-center text-xs text-slate-500 font-medium tracking-wide">
+                        <p>AAPP SPACE &copy; <?= date('Y') ?>. Todos los derechos reservados.</p>
+                    </footer>
+
+                </div>
+            </main>
         </div>
     </div>
+
     <script>
+        // TABS LOGIC
+        const navLinks = document.querySelectorAll('.nav-link');
+        const tabContents = document.querySelectorAll('.tab-content');
+        const activeTitle = document.getElementById('active-tab-title');
+
+        navLinks.forEach(link => {
+            link.addEventListener('click', () => {
+                const targetTab = link.getAttribute('data-tab');
+                
+                // Active Class on Nav
+                navLinks.forEach(l => l.classList.remove('active'));
+                link.classList.add('active');
+
+                // Toggle visibility
+                tabContents.forEach(content => {
+                    content.classList.remove('active');
+                });
+                document.getElementById(targetTab).classList.add('active');
+
+                // Update Header Title
+                activeTitle.innerText = link.innerText.trim();
+            });
+        });
+
+        // FORM IMPORT LOGIC
         const importForm = document.getElementById('import-template-form');
         const importSubmit = document.getElementById('import-template-submit');
         const importStatus = document.getElementById('import-template-status');
 
-        if (importForm && importSubmit && importStatus) {
-            importForm.addEventListener('submit', async (event) => {
-                event.preventDefault();
-                importStatus.textContent = 'Importando...';
-                importStatus.className = 'text-sm text-slate-300';
-                importSubmit.setAttribute('disabled', 'disabled');
+        if (importForm) {
+            importForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                importStatus.innerText = 'Procesando...';
+                importSubmit.disabled = true;
 
                 const formData = new FormData(importForm);
                 const payload = {
-                    slug: String(formData.get('import_slug') ?? '').trim(),
-                    html: String(formData.get('import_html') ?? ''),
+                    slug: formData.get('import_slug'),
+                    html: formData.get('import_html')
                 };
 
                 try {
-                    const response = await fetch('<?= htmlspecialchars(url_for('/api/import-template.php'), ENT_QUOTES, 'UTF-8') ?>', {
+                    const res = await fetch('<?= htmlspecialchars(url_for('/api/import-template.php')) ?>', {
                         method: 'POST',
                         headers: {'Content-Type': 'application/json'},
-                        body: JSON.stringify(payload),
+                        body: JSON.stringify(payload)
                     });
-
-                    const data = await response.json();
-                    if (!response.ok || !data.ok) {
-                        throw new Error(data.error || 'No se pudo importar la plantilla');
+                    const data = await res.json();
+                    if(data.ok) {
+                        importStatus.innerText = 'Éxito!';
+                        setTimeout(() => window.location.reload(), 1000);
+                    } else {
+                        throw new Error(data.error);
                     }
-
-                    const report = data.result.report || {};
-                    const variablesCreated = Number(report.variables_created || data.result.editable_nodes || 0);
-                    const conflictCount = Array.isArray(report.name_conflicts) ? report.name_conflicts.length : 0;
-                    const conflictSummary = conflictCount > 0 ? ` Conflictos de nombre: ${conflictCount}.` : '';
-                    importStatus.textContent = `Plantilla ${data.result.slug} importada (${variablesCreated} variables detectadas).${conflictSummary}`;
-                    importStatus.className = 'text-sm text-emerald-300';
-                    setTimeout(() => window.location.reload(), 700);
-                } catch (error) {
-                    importStatus.textContent = error instanceof Error ? error.message : 'Error inesperado';
-                    importStatus.className = 'text-sm text-red-300';
-                } finally {
-                    importSubmit.removeAttribute('disabled');
+                } catch (err) {
+                    importStatus.innerText = 'Error: ' + err.message;
+                    importSubmit.disabled = false;
                 }
             });
         }
