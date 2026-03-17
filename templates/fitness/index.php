@@ -275,7 +275,7 @@ $isAdminPreview = current_user() !== null;
                 <div class="relative group perspective-1000 w-full max-w-[400px] sm:max-w-[500px]">
                     <div class="absolute -inset-4 bg-red-600/15 blur-3xl rounded-full opacity-50 group-hover:opacity-80 transition-opacity duration-500"></div>
                     
-                    <div class="relative w-full aspect-[16/10] transform rotate-y-12 rotate-x-2 group-hover:rotate-y-0 group-hover:rotate-x-0 transition-transform duration-700 ease-out shadow-[30px_30px_60px_rgba(0,0,0,0.7)] rounded-r-xl overflow-hidden border border-white/10 bg-black">
+                    <div class="relative w-full aspect-[9/16] transform rotate-y-12 rotate-x-2 group-hover:rotate-y-0 group-hover:rotate-x-0 transition-transform duration-700 ease-out shadow-[30px_30px_60px_rgba(0,0,0,0.7)] rounded-r-xl overflow-hidden border border-white/10 bg-black">
                         
                         <div class="absolute left-0 top-0 w-6 h-full bg-gradient-to-r from-black/80 via-black/40 to-transparent z-20 border-r border-white/5"></div>
                         
