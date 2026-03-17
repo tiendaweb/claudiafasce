@@ -40,8 +40,48 @@ function save_html_backup(string $slug, string $html, ?string $tenantId = null):
     return $path;
 }
 
+function write_utf8_file_atomic(string $path, string $content, int $maxBytes, string $label): void
+{
+    if (!mb_check_encoding($content, 'UTF-8')) {
+        throw new RuntimeException(sprintf('El contenido de %s no está codificado en UTF-8', $label));
+    }
+
+    $bytes = strlen($content);
+    if ($bytes > $maxBytes) {
+        throw new RuntimeException(sprintf('El contenido de %s excede el límite (%d bytes > %d bytes)', $label, $bytes, $maxBytes));
+    }
+
+    $directory = dirname($path);
+    if (!is_dir($directory) && !mkdir($directory, 0775, true) && !is_dir($directory)) {
+        throw new RuntimeException(sprintf('No se pudo crear directorio para %s', $label));
+    }
+
+    $tmp = $path . '.tmp.' . uniqid('', true);
+    $handle = @fopen($tmp, 'wb');
+    if ($handle === false) {
+        throw new RuntimeException(sprintf('No se pudo abrir archivo temporal para %s', $label));
+    }
+
+    if (fwrite($handle, $content) === false) {
+        fclose($handle);
+        @unlink($tmp);
+        throw new RuntimeException(sprintf('No se pudo escribir el contenido de %s', $label));
+    }
+
+    fflush($handle);
+    fclose($handle);
+
+    if (!@rename($tmp, $path)) {
+        @unlink($tmp);
+        throw new RuntimeException(sprintf('No se pudo completar escritura atómica de %s', $label));
+    }
+}
+
 function import_template_from_html(string $slug, string $html, ?string $tenantId = null): array
 {
+    $maxInlineStyleBytes = 1024 * 1024;
+    $maxInlineScriptBytes = 1024 * 1024;
+
     $slug = normalize_template_slug($slug);
     if ($slug === '' || preg_match('/^[a-z0-9\-]+$/', $slug) !== 1) {
         throw new InvalidArgumentException('Slug inválido');
@@ -49,6 +89,10 @@ function import_template_from_html(string $slug, string $html, ?string $tenantId
 
     if (trim($html) === '') {
         throw new InvalidArgumentException('HTML vacío');
+    }
+
+    if (!mb_check_encoding($html, 'UTF-8')) {
+        throw new InvalidArgumentException('El HTML debe estar codificado en UTF-8');
     }
 
     $tenantId = sanitize_tenant_id($tenantId ?? resolve_tenant_id());
@@ -213,56 +257,40 @@ function import_template_from_html(string $slug, string $html, ?string $tenantId
         }
     }
 
-    $jsonScripts = $xpath->query('//script[@type="application/ld+json"]');
-    if ($jsonScripts !== false) {
-        $jsonIndex = 0;
-        /** @var DOMElement $script */
-        foreach ($jsonScripts as $script) {
-            $decoded = json_decode(trim((string) $script->textContent), true);
-            if (!is_array($decoded)) {
-                continue;
+    $collectedInlineCss = [];
+    $styles = $xpath->query('//style');
+    if ($styles !== false) {
+        /** @var DOMElement $styleNode */
+        foreach ($styles as $styleNode) {
+            $styleText = trim((string) $styleNode->textContent);
+            if ($styleText !== '') {
+                $collectedInlineCss[] = $styleText;
             }
-            $jsonIndex++;
-            set_value_by_path($defaults, 'embedded.ld_json_' . $jsonIndex, $decoded);
-            $created[] = 'embedded.ld_json_' . $jsonIndex;
+            if ($styleNode->parentNode instanceof DOMNode) {
+                $styleNode->parentNode->removeChild($styleNode);
+            }
         }
     }
 
-    $inlineScripts = $xpath->query('//script[not(@type) or @type="text/javascript"]');
-    if ($inlineScripts !== false) {
-        $inlineIndex = 0;
-        /** @var DOMElement $script */
-        foreach ($inlineScripts as $script) {
-            $scriptText = trim((string) $script->textContent);
-            if ($scriptText === '') {
+    $collectedInlineJs = [];
+    $scripts = $xpath->query('//script[not(@src)]');
+    if ($scripts !== false) {
+        /** @var DOMElement $scriptNode */
+        foreach ($scripts as $scriptNode) {
+            $type = mb_strtolower(trim((string) $scriptNode->getAttribute('type')));
+            $isExecutableInline = $type === '' || in_array($type, ['text/javascript', 'application/javascript', 'module'], true);
+
+            if (!$isExecutableInline) {
                 continue;
             }
 
-            if (preg_match_all('/(?:const|let|var)\s+([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(\{[\s\S]*?\});/m', $scriptText, $matches, PREG_SET_ORDER) < 1) {
-                continue;
+            $scriptText = trim((string) $scriptNode->textContent);
+            if ($scriptText !== '') {
+                $collectedInlineJs[] = $scriptText;
             }
 
-            foreach ($matches as $match) {
-                $objectSource = trim((string) ($match[2] ?? ''));
-                if ($objectSource === '') {
-                    continue;
-                }
-
-                $candidate = json_decode($objectSource, true);
-                if (!is_array($candidate)) {
-                    $normalized = preg_replace('/([\{,]\s*)([A-Za-z_][A-Za-z0-9_]*)\s*:/', '$1"$2":', $objectSource) ?: $objectSource;
-                    $normalized = str_replace("'", '"', $normalized);
-                    $candidate = json_decode($normalized, true);
-                }
-
-                if (!is_array($candidate)) {
-                    continue;
-                }
-
-                $inlineIndex++;
-                $varName = $slugify((string) ($match[1] ?? ('object_' . $inlineIndex)));
-                set_value_by_path($defaults, 'embedded.inline_js.' . $varName, $candidate);
-                $created[] = 'embedded.inline_js.' . $varName;
+            if ($scriptNode->parentNode instanceof DOMNode) {
+                $scriptNode->parentNode->removeChild($scriptNode);
             }
         }
     }
@@ -270,6 +298,60 @@ function import_template_from_html(string $slug, string $html, ?string $tenantId
     $templateDir = dirname(__DIR__) . '/templates/' . $slug;
     if (!is_dir($templateDir) && !mkdir($templateDir, 0775, true) && !is_dir($templateDir)) {
         throw new RuntimeException('No se pudo crear directorio de plantilla');
+    }
+
+    $assetDir = $templateDir . '/assets';
+    $assetCssPath = $assetDir . '/template.css';
+    $assetJsPath = $assetDir . '/template.js';
+
+    $inlineCssContent = trim(implode("\n\n", $collectedInlineCss));
+    $inlineJsContent = trim(implode("\n\n", $collectedInlineJs));
+
+    if ($inlineCssContent !== '') {
+        write_utf8_file_atomic($assetCssPath, $inlineCssContent . PHP_EOL, $maxInlineStyleBytes, 'assets/template.css');
+    } elseif (is_file($assetCssPath)) {
+        @unlink($assetCssPath);
+    }
+
+    if ($inlineJsContent !== '') {
+        write_utf8_file_atomic($assetJsPath, $inlineJsContent . PHP_EOL, $maxInlineScriptBytes, 'assets/template.js');
+    } elseif (is_file($assetJsPath)) {
+        @unlink($assetJsPath);
+    }
+
+    if ($inlineCssContent !== '') {
+        $head = $dom->getElementsByTagName('head')->item(0);
+        if (!$head instanceof DOMElement) {
+            $htmlNode = $dom->getElementsByTagName('html')->item(0);
+            if ($htmlNode instanceof DOMElement) {
+                $head = $dom->createElement('head');
+                $htmlNode->insertBefore($head, $htmlNode->firstChild);
+            }
+        }
+
+        if ($head instanceof DOMElement) {
+            $linkNode = $dom->createElement('link');
+            $linkNode->setAttribute('rel', 'stylesheet');
+            $linkNode->setAttribute('href', 'assets/template.css');
+            $head->appendChild($linkNode);
+        }
+    }
+
+    if ($inlineJsContent !== '') {
+        $body = $dom->getElementsByTagName('body')->item(0);
+        if (!$body instanceof DOMElement) {
+            $htmlNode = $dom->getElementsByTagName('html')->item(0);
+            if ($htmlNode instanceof DOMElement) {
+                $body = $dom->createElement('body');
+                $htmlNode->appendChild($body);
+            }
+        }
+
+        if ($body instanceof DOMElement) {
+            $scriptNode = $dom->createElement('script');
+            $scriptNode->setAttribute('src', 'assets/template.js');
+            $body->appendChild($scriptNode);
+        }
     }
 
     $normalizedHtml = $dom->saveHTML();
@@ -283,7 +365,7 @@ function import_template_from_html(string $slug, string $html, ?string $tenantId
         $normalizedHtml = str_replace($slot, $phpExpression, $normalizedHtml);
     }
 
-    $phpTemplate = "<?php\n\ndeclare(strict_types=1);\n\nrequire_once __DIR__ . '/../../includes/content-repo.php';\nrequire_once __DIR__ . '/../../includes/template-helpers.php';\n\n\$initialContent = read_content_file();\n?>\n" . $normalizedHtml;
+    $phpTemplate = "<?php\n\ndeclare(strict_types=1);\n\nrequire_once __DIR__ . '/../../includes/content-repo.php';\nrequire_once __DIR__ . '/../../includes/template-helpers.php';\n\n\$initialContent = read_content_file(null, " . var_export($slug, true) . ");\n?>\n" . $normalizedHtml;
 
     $targetFile = $templateDir . '/index.php';
     if (file_put_contents($targetFile, $phpTemplate, LOCK_EX) === false) {
@@ -294,9 +376,7 @@ function import_template_from_html(string $slug, string $html, ?string $tenantId
         throw new RuntimeException('No se pudo registrar la plantilla');
     }
 
-    $existingContent = read_content_file($tenantId);
-    $mergedContent = array_replace_recursive($existingContent, $defaults);
-    if (!save_content_file($mergedContent, $tenantId)) {
+    if (!save_content_file($defaults, $tenantId, $slug)) {
         throw new RuntimeException('No se pudo actualizar contenido del tenant');
     }
 
