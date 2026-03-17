@@ -583,6 +583,15 @@ $googleAnalyticsId = admin_content_get($content, 'site.integrations.google_analy
                                 </form>
                                 <div class="mt-8 pt-6 border-t border-white/10">
                                     <p class="text-xs font-medium text-slate-400 uppercase tracking-wider mb-3">Gestión de Archivos</p>
+                                    <div class="mb-3 rounded-xl border border-cyan-400/30 bg-cyan-500/10 p-3">
+                                        <button
+                                            type="button"
+                                            id="import-template-cta"
+                                            class="w-full text-left text-sm font-semibold text-cyan-300 hover:text-cyan-200 transition-colors"
+                                        >
+                                            Importar plantilla a este lugar
+                                        </button>
+                                    </div>
                                     <div class="space-y-2">
                                         <?php foreach ($availableTemplates as $templateSlug): ?>
                                             <?php $canDelete = count($availableTemplates) > 1; ?>
@@ -715,6 +724,22 @@ $googleAnalyticsId = admin_content_get($content, 'site.integrations.google_analy
         const importTemplateForm = document.getElementById('import-template-form');
         const importTemplateStatus = document.getElementById('import-template-status');
         const importTemplateSubmit = document.getElementById('import-template-submit');
+        const importTemplateCTA = document.getElementById('import-template-cta');
+
+        if (importTemplateCTA && importTemplateForm) {
+            importTemplateCTA.addEventListener('click', () => {
+                const accordionContainer = importTemplateForm.closest('details');
+                if (accordionContainer) {
+                    accordionContainer.open = true;
+                }
+
+                importTemplateForm.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                const firstImportField = importTemplateForm.querySelector('input, textarea, select');
+                if (firstImportField) {
+                    firstImportField.focus({ preventScroll: true });
+                }
+            });
+        }
 
         function setGalleryStatus(message, isError = false) {
             if (!galleryStatus) return;
