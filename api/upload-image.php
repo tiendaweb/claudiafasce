@@ -58,13 +58,20 @@ if (!isset($allowed[$extension])) {
     exit;
 }
 
-$finfo = finfo_open(FILEINFO_MIME_TYPE);
-$mime = is_resource($finfo) ? (string) finfo_file($finfo, $tmpPath) : '';
-if (is_resource($finfo)) {
-    finfo_close($finfo);
+$mime = '';
+if (function_exists('finfo_open')) {
+    $finfo = finfo_open(FILEINFO_MIME_TYPE);
+    if ($finfo !== false) {
+        $detected = finfo_file($finfo, $tmpPath);
+        $mime = is_string($detected) ? $detected : '';
+        finfo_close($finfo);
+    }
+} elseif (function_exists('mime_content_type')) {
+    $detected = mime_content_type($tmpPath);
+    $mime = is_string($detected) ? $detected : '';
 }
 
-if (!in_array($mime, $allowed[$extension], true)) {
+if ($mime !== '' && !in_array($mime, $allowed[$extension], true)) {
     http_response_code(400);
     echo json_encode(['ok' => false, 'error' => 'El MIME no coincide con la extensión']);
     exit;
