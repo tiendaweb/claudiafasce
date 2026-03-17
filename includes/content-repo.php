@@ -11,29 +11,159 @@ function content_file_path(?string $tenantId = null): string
     return tenant_file_path($tenantId, 'content.json');
 }
 
-function read_content_file(?string $tenantId = null): array
+function normalize_template_slug(?string $templateSlug): ?string
 {
-    $tenantId = sanitize_tenant_id($tenantId ?? resolve_tenant_id());
-    run_initial_tenant_migration($tenantId);
-
-    $target = content_file_path($tenantId);
-    if (!file_exists($target)) {
-        return [];
+    if (!is_string($templateSlug)) {
+        return null;
     }
 
-    $decoded = json_decode(file_get_contents($target) ?: '{}', true);
+    $normalized = mb_strtolower(trim($templateSlug));
+
+    if (preg_match('/^[a-z0-9\-]+$/', $normalized) !== 1) {
+        return null;
+    }
+
+    return $normalized;
+}
+
+function template_content_dir_path(?string $tenantId = null, ?string $templateSlug = null): ?string
+{
+    $tenantId = sanitize_tenant_id($tenantId ?? resolve_tenant_id());
+    $templateSlug = normalize_template_slug($templateSlug);
+
+    if ($templateSlug === null) {
+        return null;
+    }
+
+    return tenant_data_dir($tenantId) . '/templates/' . $templateSlug;
+}
+
+function template_content_file_path(?string $tenantId = null, ?string $templateSlug = null): ?string
+{
+    $templateDir = template_content_dir_path($tenantId, $templateSlug);
+
+    if ($templateDir === null) {
+        return null;
+    }
+
+    return $templateDir . '/content.json';
+}
+
+function template_meta_file_path(?string $tenantId = null, ?string $templateSlug = null): ?string
+{
+    $templateDir = template_content_dir_path($tenantId, $templateSlug);
+
+    if ($templateDir === null) {
+        return null;
+    }
+
+    return $templateDir . '/meta.json';
+}
+
+function decode_content_file(string $path): array
+{
+    $decoded = json_decode(file_get_contents($path) ?: '{}', true);
 
     return is_array($decoded) ? $decoded : [];
 }
 
-function save_content_file(array $data, ?string $tenantId = null): bool
+function infer_template_slug_from_content(array $data): ?string
+{
+    $configured = $data['site']['template'] ?? null;
+
+    return is_string($configured) ? normalize_template_slug($configured) : null;
+}
+
+function list_tenant_template_slugs(string $tenantId): array
+{
+    $templatesRoot = tenant_data_dir($tenantId) . '/templates';
+    if (!is_dir($templatesRoot)) {
+        return [];
+    }
+
+    $entries = scandir($templatesRoot);
+    if ($entries === false) {
+        return [];
+    }
+
+    $slugs = [];
+    foreach ($entries as $entry) {
+        $slug = normalize_template_slug($entry);
+        if ($slug === null) {
+            continue;
+        }
+
+        if (is_file($templatesRoot . '/' . $slug . '/content.json')) {
+            $slugs[] = $slug;
+        }
+    }
+
+    return array_values(array_unique($slugs));
+}
+
+function read_content_file(?string $tenantId = null, ?string $templateSlug = null): array
+{
+    $tenantId = sanitize_tenant_id($tenantId ?? resolve_tenant_id());
+    run_initial_tenant_migration($tenantId);
+
+    $resolvedSlug = normalize_template_slug($templateSlug);
+    if ($resolvedSlug !== null) {
+        $target = template_content_file_path($tenantId, $resolvedSlug);
+        if (is_string($target) && is_file($target)) {
+            return decode_content_file($target);
+        }
+    }
+
+    $legacyPath = content_file_path($tenantId);
+    $legacyData = is_file($legacyPath) ? decode_content_file($legacyPath) : [];
+
+    if ($resolvedSlug === null) {
+        $fallbackCandidates = [];
+        $legacySlug = infer_template_slug_from_content($legacyData);
+        if ($legacySlug !== null) {
+            $fallbackCandidates[] = $legacySlug;
+        }
+
+        $fallbackCandidates[] = 'artistas';
+        $fallbackCandidates = array_merge($fallbackCandidates, list_tenant_template_slugs($tenantId));
+
+        foreach (array_values(array_unique($fallbackCandidates)) as $candidateSlug) {
+            $target = template_content_file_path($tenantId, $candidateSlug);
+            if (is_string($target) && is_file($target)) {
+                return decode_content_file($target);
+            }
+        }
+
+        $resolvedSlug = $legacySlug ?? 'artistas';
+    }
+
+    if ($legacyData === []) {
+        return [];
+    }
+
+    save_content_file($legacyData, $tenantId, $resolvedSlug);
+
+    return $legacyData;
+}
+
+function save_content_file(array $data, ?string $tenantId = null, ?string $templateSlug = null): bool
 {
     $tenantId = sanitize_tenant_id($tenantId ?? resolve_tenant_id());
     if (!ensure_tenant_directories($tenantId)) {
         return false;
     }
 
-    $target = content_file_path($tenantId);
+    $resolvedSlug = normalize_template_slug($templateSlug) ?? infer_template_slug_from_content($data) ?? 'artistas';
+    $target = template_content_file_path($tenantId, $resolvedSlug);
+    if (!is_string($target)) {
+        return false;
+    }
+
+    $templateDir = dirname($target);
+    if (!is_dir($templateDir) && !mkdir($templateDir, 0775, true) && !is_dir($templateDir)) {
+        return false;
+    }
+
     $tmp = $target . '.tmp.' . uniqid('', true);
     $lockFile = $target . '.lock';
     $json = json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
