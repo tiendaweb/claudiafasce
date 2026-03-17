@@ -26,8 +26,8 @@ if ($tenantId === DEFAULT_TENANT_ID && !has_users($tenantId)) {
     exit;
 }
 
-if (current_user($tenantId) !== null) {
-    header('Location: ' . url_for('/admin'));
+if (current_user() !== null) {
+    header('Location: ' . (is_super_admin() ? url_for('/super-admin.php') : url_for('/admin')));
     exit;
 }
 
@@ -36,10 +36,19 @@ $username = '';
 $isInitialSetup = !has_users($tenantId);
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    if ($isInitialSetup) {
-        $username = trim((string) ($_POST['username'] ?? ''));
-        $password = (string) ($_POST['password'] ?? '');
+    $username = trim((string) ($_POST['username'] ?? ''));
+    $password = (string) ($_POST['password'] ?? '');
 
+    $globalUser = find_global_user_by_username($username);
+    if ($globalUser !== null && password_verify($password, (string) ($globalUser['password_hash'] ?? ''))) {
+        $_SESSION['user_id'] = (string) $globalUser['id'];
+        $_SESSION['auth_scope'] = 'global';
+        unset($_SESSION['tenant_id']);
+        header('Location: ' . url_for('/super-admin.php'));
+        exit;
+    }
+
+    if ($isInitialSetup) {
         if ($username === '' || mb_strlen($username) < 3 || mb_strlen($username) > 50) {
             $error = 'El usuario/email debe tener entre 3 y 50 caracteres.';
         } elseif (!preg_match('/^[A-Za-z0-9._@+-]+$/', $username)) {
@@ -59,30 +68,30 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $isInitialSetup = false;
         } else {
             $user = [
-                'id' => 1,
+                'id' => '1',
                 'username' => $username,
                 'name' => 'Administrador',
+                'role' => ROLE_TENANT_ADMIN,
                 'password_hash' => password_hash($password, PASSWORD_DEFAULT),
             ];
 
             if (!save_users([$user], $tenantId)) {
                 $error = 'No se pudo crear el usuario inicial.';
             } else {
-                $_SESSION['user_id'] = $user['id'];
+                $_SESSION['user_id'] = (string) $user['id'];
                 $_SESSION['tenant_id'] = $tenantId;
+                $_SESSION['auth_scope'] = 'tenant';
                 header('Location: ' . url_for('/admin'));
                 exit;
             }
         }
     } else {
-        $username = trim((string) ($_POST['username'] ?? ''));
-        $password = (string) ($_POST['password'] ?? '');
-
         $user = find_user_by_username($username, $tenantId);
 
         if ($user !== null && isset($user['password_hash']) && password_verify($password, (string) $user['password_hash'])) {
-            $_SESSION['user_id'] = $user['id'];
-                $_SESSION['tenant_id'] = $tenantId;
+            $_SESSION['user_id'] = (string) $user['id'];
+            $_SESSION['tenant_id'] = $tenantId;
+            $_SESSION['auth_scope'] = 'tenant';
             header('Location: ' . url_for('/admin'));
             exit;
         }

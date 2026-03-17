@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/tenant.php';
+require_once __DIR__ . '/json-store.php';
 
 function plans_path(): string
 {
@@ -19,28 +20,20 @@ function read_plans(): array
     $path = plans_path();
     if (!is_file($path)) {
         $seedPlans = [
-            [
-                'id' => 'free',
-                'name' => 'Gratis',
-                'description' => 'Ideal para empezar y probar el producto.',
-                'price_monthly' => 0,
-                'is_default' => true,
-            ],
-            [
-                'id' => 'pro',
-                'name' => 'Pro',
-                'description' => 'Incluye soporte prioritario y onboarding asistido.',
-                'price_monthly' => 29,
-                'is_default' => false,
-            ],
+            ['id' => 'free', 'name' => 'Gratis', 'description' => 'Ideal para empezar y probar el producto.', 'price_monthly' => 0, 'is_default' => true],
+            ['id' => 'pro', 'name' => 'Pro', 'description' => 'Incluye soporte prioritario y onboarding asistido.', 'price_monthly' => 29, 'is_default' => false],
         ];
-        @file_put_contents($path, json_encode($seedPlans, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE) . PHP_EOL, LOCK_EX);
+        write_json_file_atomic($path, $seedPlans);
     }
 
-    $raw = @file_get_contents($path);
-    $decoded = json_decode($raw ?: '[]', true);
+    $decoded = read_json_file($path, []);
 
     return is_array($decoded) ? $decoded : [];
+}
+
+function save_plans(array $plans): bool
+{
+    return write_json_file_atomic(plans_path(), array_values($plans));
 }
 
 function find_plan_by_id(string $planId): ?array
@@ -69,24 +62,18 @@ function read_subscriptions(): array
 {
     $path = subscriptions_path();
     if (!is_file($path)) {
-        @file_put_contents($path, "[]\n", LOCK_EX);
+        write_json_file_atomic($path, []);
         return [];
     }
 
-    $raw = @file_get_contents($path);
-    $decoded = json_decode($raw ?: '[]', true);
+    $decoded = read_json_file($path, []);
 
     return is_array($decoded) ? $decoded : [];
 }
 
 function save_subscriptions(array $subscriptions): bool
 {
-    $json = json_encode(array_values($subscriptions), JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
-    if ($json === false) {
-        return false;
-    }
-
-    return file_put_contents(subscriptions_path(), $json . PHP_EOL, LOCK_EX) !== false;
+    return write_json_file_atomic(subscriptions_path(), array_values($subscriptions));
 }
 
 function tenant_has_subscription(string $tenantId): bool

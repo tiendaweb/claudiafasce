@@ -51,9 +51,10 @@ function create_tenant_account(string $tenantId, string $email, string $password
     }
 
     $user = [
-        'id' => 1,
+        'id' => '1',
         'username' => $email,
         'name' => 'Administrador',
+        'role' => ROLE_TENANT_ADMIN,
         'password_hash' => password_hash($password, PASSWORD_DEFAULT),
     ];
 

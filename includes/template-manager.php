@@ -3,10 +3,16 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/tenant.php';
+require_once __DIR__ . '/json-store.php';
 
 function templates_dir_path(): string
 {
     return dirname(__DIR__) . '/templates';
+}
+
+function global_template_registry_path(): string
+{
+    return dirname(__DIR__) . '/data/templates-index.json';
 }
 
 function template_registry_path(?string $tenantId = null): string
@@ -16,29 +22,41 @@ function template_registry_path(?string $tenantId = null): string
     return tenant_file_path($tenantId, 'templates-index.json');
 }
 
-function read_template_registry(?string $tenantId = null): array
+function normalize_template_slugs(array $slugs): array
 {
-    $tenantId = sanitize_tenant_id($tenantId ?? resolve_tenant_id());
-    run_initial_tenant_migration($tenantId);
-
-    $path = template_registry_path($tenantId);
-    if (!is_file($path)) {
-        return [];
-    }
-
-    $decoded = json_decode(file_get_contents($path) ?: '[]', true);
-    if (!is_array($decoded)) {
-        return [];
-    }
-
     $valid = [];
-    foreach ($decoded as $slug) {
+    foreach ($slugs as $slug) {
         if (is_string($slug) && preg_match('/^[a-z0-9\-]+$/', $slug) === 1) {
             $valid[] = $slug;
         }
     }
 
-    return array_values(array_unique($valid));
+    $valid = array_values(array_unique($valid));
+    sort($valid);
+
+    return $valid;
+}
+
+function read_global_template_registry(): array
+{
+    $decoded = read_json_file(global_template_registry_path(), []);
+
+    return is_array($decoded) ? normalize_template_slugs($decoded) : [];
+}
+
+function save_global_template_registry(array $slugs): bool
+{
+    return write_json_file_atomic(global_template_registry_path(), normalize_template_slugs($slugs));
+}
+
+function read_template_registry(?string $tenantId = null): array
+{
+    $tenantId = sanitize_tenant_id($tenantId ?? resolve_tenant_id());
+    run_initial_tenant_migration($tenantId);
+
+    $decoded = read_json_file(template_registry_path($tenantId), []);
+
+    return is_array($decoded) ? normalize_template_slugs($decoded) : [];
 }
 
 function save_template_registry(array $slugs, ?string $tenantId = null): bool
@@ -48,24 +66,7 @@ function save_template_registry(array $slugs, ?string $tenantId = null): bool
         return false;
     }
 
-    $path = template_registry_path($tenantId);
-    $normalized = [];
-
-    foreach ($slugs as $slug) {
-        if (is_string($slug) && preg_match('/^[a-z0-9\-]+$/', $slug) === 1) {
-            $normalized[] = $slug;
-        }
-    }
-
-    $normalized = array_values(array_unique($normalized));
-    sort($normalized);
-
-    $json = json_encode($normalized, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
-    if ($json === false) {
-        return false;
-    }
-
-    return file_put_contents($path, $json . PHP_EOL, LOCK_EX) !== false;
+    return write_json_file_atomic(template_registry_path($tenantId), normalize_template_slugs($slugs));
 }
 
 function register_template_slug(string $slug, ?string $tenantId = null): bool
@@ -86,55 +87,36 @@ function unregister_template_slug(string $slug, ?string $tenantId = null): bool
         return false;
     }
 
-    $registry = array_values(array_filter(
-        read_template_registry($tenantId),
-        static fn (string $registeredSlug): bool => $registeredSlug !== $slug
-    ));
+    $registry = array_values(array_filter(read_template_registry($tenantId), static fn (string $s): bool => $s !== $slug));
 
     return save_template_registry($registry, $tenantId);
 }
 
 function delete_template_directory(string $slug): bool
 {
-    if (!is_valid_template_slug($slug)) {
-        return false;
-    }
-
-    // Las plantillas físicas son globales al sistema. Para evitar cruces entre tenants,
-    // el borrado de un tenant solo desregistra su uso y no elimina archivos compartidos.
-    return true;
+    return is_valid_template_slug($slug);
 }
 
 function list_available_templates(?string $tenantId = null): array
 {
-    $templatesDir = templates_dir_path();
-    if (!is_dir($templatesDir)) {
-        return [];
-    }
-
-    $entries = scandir($templatesDir);
-    if ($entries === false) {
-        return [];
-    }
-
     $templates = [];
-    foreach ($entries as $entry) {
-        if ($entry === '.' || $entry === '..') {
-            continue;
-        }
-
-        if (!preg_match('/^[a-z0-9\-]+$/', $entry)) {
-            continue;
-        }
-
-        $indexFile = $templatesDir . '/' . $entry . '/index.php';
-        if (is_file($indexFile)) {
-            $templates[] = $entry;
+    $templatesDir = templates_dir_path();
+    if (is_dir($templatesDir)) {
+        $entries = scandir($templatesDir);
+        if (is_array($entries)) {
+            foreach ($entries as $entry) {
+                if (!is_valid_template_slug($entry)) {
+                    continue;
+                }
+                if (is_file($templatesDir . '/' . $entry . '/index.php')) {
+                    $templates[] = $entry;
+                }
+            }
         }
     }
 
-    $templates = array_values(array_unique(array_merge($templates, read_template_registry($tenantId))));
-    sort($templates);
+    $templates = array_merge($templates, read_global_template_registry(), read_template_registry($tenantId));
+    $templates = normalize_template_slugs($templates);
 
     return $templates;
 }
@@ -167,11 +149,7 @@ function resolve_active_template(array $content, string $fallback = 'artistas', 
     }
 
     $configured = $content['site']['template'] ?? null;
-    if (!is_string($configured) || $configured === '') {
-        return $fallback;
-    }
-
-    if (!in_array($configured, $available, true)) {
+    if (!is_string($configured) || $configured === '' || !in_array($configured, $available, true)) {
         return $fallback;
     }
 

@@ -14,7 +14,7 @@ require_once __DIR__ . '/includes/billing.php';
 $tenantId = resolve_tenant_id();
 run_initial_tenant_migration($tenantId);
 
-if ($tenantId === DEFAULT_TENANT_ID && !has_users($tenantId) && current_user($tenantId) === null) {
+if ($tenantId === DEFAULT_TENANT_ID && !has_users($tenantId) && current_user() === null) {
     if (isset($_SESSION['selected_plan_id'])) {
         $selectedPlan = find_plan_by_id((string) $_SESSION['selected_plan_id']);
         if ($selectedPlan !== null && !empty($selectedPlan['price_monthly']) && empty($_SESSION['checkout_completed'])) {
@@ -30,7 +30,7 @@ if ($tenantId === DEFAULT_TENANT_ID && !has_users($tenantId) && current_user($te
     exit;
 }
 
-$isLoggedIn = current_user($tenantId) !== null;
+$isLoggedIn = current_user() !== null && !is_super_admin();
 $content = read_content_file($tenantId);
 $activeTemplate = resolve_active_template($content, 'artistas', $tenantId);
 $templateFile = template_index_path($activeTemplate);

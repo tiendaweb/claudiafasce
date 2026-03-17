@@ -1,8 +1,10 @@
 [
   {
-    "id": 1,
+    "id": "1",
     "username": "admin",
-    "name": "Administrador",
-    "password_hash": "$2y$12$mdEM/XZPahVTmLY9e2Sjo.Nqs9fVXnT7ag67b7XyAZRNHYhjNeBWO"
+    "name": "Administrador Global",
+    "password_hash": "$2y$12$mdEM/XZPahVTmLY9e2Sjo.Nqs9fVXnT7ag67b7XyAZRNHYhjNeBWO",
+    "role": "super_admin",
+    "tenant_id": null
   }
 ]

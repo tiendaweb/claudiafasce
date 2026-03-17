@@ -12,7 +12,11 @@ $tenantId = resolve_tenant_id();
 run_initial_tenant_migration($tenantId);
 
 require_auth($tenantId);
-$user = current_user($tenantId);
+$user = current_user();
+if (is_super_admin()) {
+    header('Location: ' . url_for('/super-admin.php'));
+    exit;
+}
 
 function admin_content_get(array $data, string $path, string $default = ''): string
 {
@@ -66,7 +70,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $error = 'No se pudo actualizar la contraseña.';
             } else {
                 $status = 'Contraseña actualizada correctamente.';
-                $user = current_user($tenantId);
+                $user = current_user();
             }
         }
     }
